@@ -1,41 +1,53 @@
 #include <iostream>
-#include <vector>
 #include <memory>
+#include <string>
+#include <vector>
 
-class Renderer{
+class Renderer {
 public:
     virtual ~Renderer() = default;
     virtual void Init() = 0;
     virtual void Draw() = 0;
 };
 
-class OpenGLRenderer: public Renderer{
+class OpenGLRender : public Renderer {
 public:
-    ~OpenGLRenderer() override = default;
+    ~OpenGLRender() override = default;
     void Init() override {
-        std::cout << "Init OpenGLRenderer" << std::endl;
+        std::cout << "Init OpenGL" << std::endl;        
     }
     void Draw() override {
-        std::cout << "Draw OpenGLRenderer" << std::endl;
+        std::cout << "OpenGL Draw" << std::endl;
     }
 };
 
-class VulkanRenderer: public Renderer{
+class VulkanRenderer : public Renderer {
 public:
     ~VulkanRenderer() override = default;
     void Init() override {
-        std::cout << "Init VulkanRenderer" << std::endl;
+        std::cout << "Init Vulkan" << std::endl;        
     }
     void Draw() override {
-        std::cout << "Draw VulkanRenderer" << std::endl;
+        std::cout << "Vulkan Draw" << std::endl;
     }
 };
 
 class RendererFactory {
 public:
-    static RendererFactory& getFactorySingleton() {
-        static RendererFactory mSingleton;
-        return mSingleton;
+    static RendererFactory& getSingleton() {
+        static RendererFactory instance;
+        return instance;
+    }
+
+    std::unique_ptr<Renderer> Create(const std::string &type) {
+        if (type == "OpenGL")
+        {
+            return std::make_unique<OpenGLRender>();
+        } else if (type == "Vulkan")
+        {
+            return std::make_unique<VulkanRenderer>();
+        } else 
+            return nullptr;
     }
 
     RendererFactory(const RendererFactory&) = delete;
@@ -43,20 +55,7 @@ public:
 
     RendererFactory& operator=(const RendererFactory&) = delete;
     RendererFactory& operator=(RendererFactory&&) = delete;
-
-    void CreateRenderer(const std::string &type) {
-        if (type == "OpenGL")
-        {
-            mRenderers.push_back(std::make_unique<OpenGLRenderer>());
-        } else if (type == "Vulkan")
-        {
-            mRenderers.push_back(std::make_unique<VulkanRenderer>());
-        }
-    }
-
 private:
-    std::vector<std::unique_ptr<Renderer>> mRenderers;
-
     RendererFactory() = default;
     ~RendererFactory() = default;
 };
