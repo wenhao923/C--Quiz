@@ -1,149 +1,124 @@
-struct Block {
-    unsigned refCount = 0;
-};
-
-template <typename T>
+template<typename T>
 class MySharedPtr {
 public:
-    MySharedPtr(T* ptr) : rawPtr(ptr) {
-        b = new Block();
-        b->refCount = 1;
-    }
-    ~MySharedPtr() {
-        b->refCount--;
-        if (b->refCount <= 0)
+    MySharedPtr(T* ptr = nullptr) : rawPtr(ptr) noexcept {
+        if (ptr)
         {
-            delete rawPtr;
+            b = new Block();
+            b->refCount = 1;
+        } else {
+            b = nullptr;
         }
+    }
+
+    ~MySharedPtr() noexcept {
+        release();
     }
 
     MySharedPtr(const MySharedPtr& other) noexcept {
-        b = other.b;
-        rawPtr = other.rawPtr;
-
-        b->refCount++;
+        copyFrom(other);
     }
 
     MySharedPtr(MySharedPtr&& other) noexcept {
-        b = other.b;
-        rawPtr = other.rawPtr;
-
-        other.rawPtr = nullptr;
-        other.b = nullptr;
+        moveFrom(other);
     }
 
-    explicit MySharedPtr& operator=(const MySharedPtr& other) noexcept {
+    MySharedPtr& operator=(const MySharedPtr& other) {
         if (this != &other)
         {
-            b = other.b;
-            rawPtr = other.rawPtr;
-
-            b->refCount++;
+            release();
+            copyFrom(other);
         }
-        return *this;   
+        return *this;
     }
 
-    explicit MySharedPtr& operator=(MySharedPtr&& other) noexcept {
+    MySharedPtr& operator=(MySharedPtr&& other) {
         if (this != &other)
         {
-            b = other.b;
-            rawPtr = other.rawPtr;
-
-            other.rawPtr = nullptr;
-            other.b = nullptr;
+            release();
+            moveFrom(other);
         }
-        return *this;   
+        return *this;
     }
 
-    T* get() const noexcept { 
-        if (b && b->refCount > 0)
-        {
-            return rawPtr; 
-        }
-        return nullptr;
-    }
-    T* operator->() const noexcept { 
-        if (b && b->refCount > 0)
-        {
-            return rawPtr; 
-        }
-        return nullptr;
-    }
-    T& operator*() const noexcept { 
-        if (b && b->refCount > 0)
-        {
-            return *rawPtr; 
-        }
-        return nullptr;
-    }
+    T* get() const noexcept { return rawPtr; }
+    T* operator->() const noexcept { return rawPtr; }
+    T& operator*() const noexcept { return *rawPtr; }
 
 private:
-    T* rawPtr;
-    Block* b;
+    T* rawPtr = nullptr;
+    struct Block {
+        unsigned refCount = 0;
+    }
+    Block* b = nullptr;
+
+    void release() {
+        if (b)
+        {
+            b->refCount--;
+            if (b->refCount == 0)
+            {
+                delete rawPtr;
+                delete b;
+            }
+        } 
+        rawPtr = nullptr;
+        b = nullptr;
+    }
+
+    void copyFrom(const MySharedPtr& other) {
+        rawPtr = other.rawPtr;
+        b = other.b;
+
+        if (b)
+        {
+            b->refCount++;
+        }
+    }
+
+    void moveFrom(MySharedPtr& other) {
+        rawPtr = other.rawPtr;
+        b = other.b;
+
+        other.rawPtr = nullptr;
+        otehr.b = nullptr;
+    }
 };
 
-评分: 40
 
-❌ 扣分点 1：严重的内存泄漏 (Control Block Leak) [-20分]
-你的代码：
+这份代码的逻辑已经非常完善了！评分可以给到 90/100。
 
-C++
+一、 两个必修的编译错误 (Syntax Errors)
+这两个错误会导致代码无法通过编译：
 
-if (b->refCount <= 0) {
-    delete rawPtr; // 删了数据
-    // 😱 完了，Block b 也是 new 出来的，谁来 delete 它？
-}
-判词： shared_ptr 是“一拖二”的结构：堆上有数据，也有控制块。 你只管了数据的死活，没管控制块。每次一个对象彻底销毁，堆上就会残留一个 Block 结构体。跑个几万次，内存就满了。
-
-正确写法：
+拼写错误： 在 moveFrom 函数中：
 
 C++
 
-if (b->refCount == 0) {
-    delete rawPtr;
-    delete b; // ✅ 必须把计数器自己也删了！
-}
-❌ 扣分点 2：赋值操作导致的泄漏 (Assignment Leak) [-20分]
-你的代码：
+otehr.b = nullptr; // ❌ 拼写错误：otehr -> other
+结构体定义缺失分号： 在 private 区域定义 struct Block 时：
 
 C++
 
-// operator=
-if (this != &other) {
-    // 😱 你直接把 b 和 rawPtr 覆盖了！
-    // 那你手里原来拿的那个对象的引用计数谁去减？
-    b = other.b; 
-    rawPtr = other.rawPtr;
-    b->refCount++; 
-}
-判词： 这是写智能指针最大的忌讳。赋值操作本质是 “分手 + 恋爱”。 你现在的逻辑是：直接去谈新恋爱，完全不管前任（原来的 refCount 没减）。
+struct Block {
+    unsigned refCount = 0;
+} // ❌ 缺少分号 ;
+Block* b = nullptr;
+修正：应该为 };。
 
-后果：你原来的前任（对象）引用计数永远不会归零，永远无法释放。这是 100% 的资源泄露。
-
-正确逻辑：
-
-旧的 refCount--。
-
-如果旧的归零，删除旧资源。
-
-接管新的，新的 refCount++。
-
-❌ 扣分点 3：移动后的崩溃 (Move Crash) [-10分]
-你的代码：
+二、 一个隐藏的“诚实”问题：noexcept
+看你的构造函数：
 
 C++
 
-// 假设 p1 被移动给了 p2，p1.b 变成了 nullptr
-~MySharedPtr() {
-    b->refCount--; // 💥 崩！访问 nullptr->refCount
+MySharedPtr(T* ptr = nullptr) : rawPtr(ptr) noexcept { // <--- 标记了 noexcept
+    if (ptr) {
+        b = new Block(); // <--- 这里可能会抛出 std::bad_alloc
+        // ...
+    }
 }
-判词： 移动语义会将源对象置空。析构函数必须检查 b 是否为空，否则操作空指针直接导致程序崩溃。
+问题：new 操作符在内存不足时会抛出 std::bad_alloc 异常。
 
-❌ 扣分点 4：语法与逻辑错误 [-10分]
-explicit operator=：
+后果：你标记了 noexcept，意味着你向编译器承诺“我绝不抛异常”。如果 new 真的抛了异常，C++ 运行时会直接调用 std::terminate() 强行杀死程序，导致无法被外部的 try-catch 捕获。
 
-错。explicit 不能修饰赋值运算符，编译器会直接报错。它只能修饰构造函数和类型转换函数。
-
-T& operator* 返回 nullptr：
-
-错。C++ 中引用必须绑定到合法对象，不能返回空。这行代码甚至可能无法通过编译，或者导致未定义行为。
+建议：去掉构造函数的 noexcept。除非你使用 new (std::nothrow) Block() 并处理空指针。
