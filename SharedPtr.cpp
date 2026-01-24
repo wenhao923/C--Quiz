@@ -1,14 +1,13 @@
-template<typename T>
+template <typename T>
 class MySharedPtr {
 public:
-    MySharedPtr(T* ptr = nullptr) : rawPtr(ptr) noexcept {
+    MySharedPtr(T* ptr = nullptr) : rawPtr(ptr) {
         if (ptr)
         {
             b = new Block();
             b->refCount = 1;
-        } else {
-            b = nullptr;
         }
+        b = nullptr;
     }
 
     ~MySharedPtr() noexcept {
@@ -19,11 +18,11 @@ public:
         copyFrom(other);
     }
 
-    MySharedPtr(MySharedPtr&& other) noexcept {
+    MySharedPtr(MySharedPtr&& other) {
         moveFrom(other);
     }
 
-    MySharedPtr& operator=(const MySharedPtr& other) {
+    MySharedPtr& operator=(const MySharedPtr& other) noexcept {
         if (this != &other)
         {
             release();
@@ -41,18 +40,25 @@ public:
         return *this;
     }
 
-    T* get() const noexcept { return rawPtr; }
-    T* operator->() const noexcept { return rawPtr; }
-    T& operator*() const noexcept { return *rawPtr; }
+    T* get() const noexcept {
+        return rawPtr;
+    }
 
+    T* operator->() const noexcept {
+        return rawPtr;
+    }
+
+    T& operator*() const noexcept {
+        return *rawPtr;
+    }
 private:
-    T* rawPtr = nullptr;
     struct Block {
         unsigned refCount = 0;
     }
+    T* rawPtr = nullptr;
     Block* b = nullptr;
 
-    void release() {
+    void release() noexcept {
         if (b)
         {
             b->refCount--;
@@ -61,12 +67,12 @@ private:
                 delete rawPtr;
                 delete b;
             }
-        } 
+        }
         rawPtr = nullptr;
         b = nullptr;
     }
 
-    void copyFrom(const MySharedPtr& other) {
+    void copyFrom(const MySharedPtr& other) noexcept {
         rawPtr = other.rawPtr;
         b = other.b;
 
@@ -74,6 +80,8 @@ private:
         {
             b->refCount++;
         }
+        // 1. other可能是空么
+        // 2. b可能是空么？要做保护么。对应的是刚用空指针构造出来，便拷贝构造。这个动作要直接报错么？
     }
 
     void moveFrom(MySharedPtr& other) {
@@ -81,44 +89,46 @@ private:
         b = other.b;
 
         other.rawPtr = nullptr;
-        otehr.b = nullptr;
+        other.b = nullptr;
     }
 };
 
+如果要打分（满分 100 分），我会给 50 分。
 
-这份代码的逻辑已经非常完善了！评分可以给到 90/100。
+扣分主要原因在于一个导致程序完全不可用的致命 Bug，以及一个编译错误。如果没有那个致命 Bug，分数为 75 分。
 
-一、 两个必修的编译错误 (Syntax Errors)
-这两个错误会导致代码无法通过编译：
 
-拼写错误： 在 moveFrom 函数中：
+1. 致命错误 (Critical Bugs)
+这是导致你只能拿一半分数的关键原因，代码只要一运行就会出错或内存泄漏。
+
+位置：构造函数
 
 C++
 
-otehr.b = nullptr; // ❌ 拼写错误：otehr -> other
-结构体定义缺失分号： 在 private 区域定义 struct Block 时：
+MySharedPtr(T* ptr = nullptr) : rawPtr(ptr) {
+    if (ptr)
+    {
+        b = new Block();
+        b->refCount = 1;
+    }
+    b = nullptr; // <--- ！！！致命错误！！！
+}
+分析： 无论 ptr 是否为空，你都在构造函数的最后一行强行把 b（控制块指针）设为了 nullptr。
+
+后果：
+
+你刚刚 new Block() 分配的内存瞬间丢失了指针（内存泄漏）。
+
+你的对象虽然持有 rawPtr，但 b 是空的。
+
+当你析构或拷贝时，代码检查 if (b)，发现是空，就不会做引用计数操作，也不会 delete rawPtr。这会导致 rawPtr 指向的对象也发生内存泄漏。
+
+2. 语法错误 (Syntax Error)
+位置：Block 定义
 
 C++
 
 struct Block {
     unsigned refCount = 0;
-} // ❌ 缺少分号 ;
-Block* b = nullptr;
-修正：应该为 };。
-
-二、 一个隐藏的“诚实”问题：noexcept
-看你的构造函数：
-
-C++
-
-MySharedPtr(T* ptr = nullptr) : rawPtr(ptr) noexcept { // <--- 标记了 noexcept
-    if (ptr) {
-        b = new Block(); // <--- 这里可能会抛出 std::bad_alloc
-        // ...
-    }
-}
-问题：new 操作符在内存不足时会抛出 std::bad_alloc 异常。
-
-后果：你标记了 noexcept，意味着你向编译器承诺“我绝不抛异常”。如果 new 真的抛了异常，C++ 运行时会直接调用 std::terminate() 强行杀死程序，导致无法被外部的 try-catch 捕获。
-
-建议：去掉构造函数的 noexcept。除非你使用 new (std::nothrow) Block() 并处理空指针。
+} // <--- 缺少分号
+分析： C++ 中结构体定义结束后必须加分号 ;。
