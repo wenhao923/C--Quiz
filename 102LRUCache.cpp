@@ -1,5 +1,6 @@
 #include <list>
 #include <unordered_map>
+#include <memory>
 class LRUCache {
 public:
     LRUCache(int capacity) {
@@ -40,6 +41,7 @@ private:
     std::unordered_map<int, tListIter> mMap;
 };
 
+std::shared_ptr<LRUCache> ptr;
 
 ❌ 致命错误：删了 Value，没删 Key
 你的代码：
