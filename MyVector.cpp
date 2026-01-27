@@ -1,45 +1,33 @@
 template <typename T>
-class MyVector {
+class MyVector{
 public:
-    MyVector() : data(nullptr), capacity(0), size(0) {}
-    // 1.构造需要参数么？原生指针、数量？
-
+    MyVector() {}
     ~MyVector() {
-        delete data[];
-        // 如果data为nullptr会怎样？
+        delete[] element;
     }
-
-    MyVector(const MyVector& other) : data(nullptr), capacity(0), size(0) {
-        data = new T[other.capacity];
-        for (size_t i = 0; i < other.size; i++) {
-            data[i] = other[i];
+    MyVector(const MyVector& other) : size(other.size), capacity(other.capacity) {
+        element = new T[capacity];
+        for (size_t i = 0; i < size; i++)
+        {
+            element[i] = other.element[i]; // T的赋值函数要做好？
         }
-        capacity = other.capacity;
-        size = other.size;
     }
-
-    MyVector(MyVector&& other) : data(nullptr), capacity(0), size(0) {
-        data = other[0];
-
-        capacity = other.capacity;
-        size = other.size;
-
-        other.data = nullptr;
-        other.capacity = 0;
+    MyVector(MyVector&& other) : element(other.element), size(other.size), capacity(other.capacity) {
+        other.element = nullptr;
         other.size = 0;
+        other.capacity = 0;
     }
 
-    MyVector& operator=(const MyVector& other) {
+    MyVector& operator=(const MyVector& other) : size(other.size), capacity(other.capacity) {
         if (this != &other)
         {
-            delete data[];
+            delete[] element;
 
-            data = new T[other.capacity];
-            for (size_t i = 0; i < other.size; i++) {
-                data[i] = other[i];
+            element = new T[capacity];
+            for (size_t i = 0; i < size; i++)
+            {
+                element[i] = other.element[i]; // T的赋值函数要做好？
             }
-            capacity = other.capacity;
-            size = other.size;
         }
         return *this;
     }
@@ -47,110 +35,96 @@ public:
     MyVector& operator=(MyVector&& other) {
         if (this != &other)
         {
-            delete data[];
+            delete[] element;
 
-            data = other[0];
-
-            capacity = other.capacity;
+            element = other.element;
             size = other.size;
+            capacity = other.capacity;
 
-            other.data = nullptr;
-            other.capacity = 0;
+            other.element = nullptr;
             other.size = 0;
+            other.capacity = 0;
         }
         return *this;
     }
 
-    void push_back(T* element) {
-        if (capacity > size)
+    void push_back(const T& e) {
+        if (size == capacity)
         {
-            data[size] = element;
-            size++;
-        } else {
-            T* newData = new T[capacity*2];
+            NewElement = new T[size == 0 ? 1 : capacity * 2];
             for (size_t i = 0; i < size; i++)
             {
-                newData[i] = data[i];
+                NewElement[i] = element[i]; // T的赋值函数要做好？
             }
-            newData[i] = element;
-            capacity *= 2;
-            size++;
-            data = newData;
+            delete[] element;
+            element = NewElement;   // 可以在原element后面拓展内存么？
         }
-    }
 
-    T& operator[](unsigned i) {
-        return data[i];
+        element[size] = &e;
+        size++;
     }
-
 private:
-    T* data = nullptr;
-    size_t capacity = 0;
+    T* element = nullptr;   // 可以表示多个数量么？
     size_t size = 0;
+    size_t capacity = 0;
 };
 
 
-这一次的评分是：40分
+60分
 
-1. 语法错误：delete 写法 (扣 10 分)
+❌ 错误 1：赋值运算符不能用“初始化列表”
 你的代码：
 
 C++
 
-delete data[]; // ❌ 编译报错
-分析： C++ 对数组的释放语法是非常严格的，方括号必须紧跟在 delete 后面。 修正：
+MyVector& operator=(const MyVector& other) : size(other.size), capacity(other.capacity) { // 错误！
+分析： 冒号后面的初始化列表（: size(...)）只能用在构造函数里。赋值函数（operator=）是普通函数，只能在函数体的大括号里写赋值语句。 修正：
 
 C++
 
-delete[] data; // ✅
-2. 概念错误：Move 是抢“钥匙”，不是抢“家具” (扣 20 分)
+MyVector& operator=(const MyVector& other) {
+    // ... 前面的检查 ...
+    size = other.size;         // 写在函数体里
+    capacity = other.capacity; // 写在函数体里
+}
+
+❌ 错误 2：push_back 类型不匹配
 你的代码：
 
 C++
 
-// 移动构造
-data = other[0]; // ❌ 类型不匹配，且逻辑错误
+element[size] = &e; // 错误！
 分析：
 
-data 是 T*（指针，也就是房子的钥匙）。
+element[size] 的类型是 T（对象本身）。
 
-other[0] 是 T&（第0个元素，也就是房子里的第一个家具）。
+&e 的类型是 T*（对象的地址）。
 
-编译器会报错： 无法将 T 类型赋值给 T*。
-
-逻辑错误： 移动语义的本质是窃取指针。你应该直接把 other 的指针拿过来，而不是去读它的元素。 修正：
+你不能把一个地址赋给一个对象。 修正：
 
 C++
 
-data = other.data; // ✅ 把它的指针直接拿过来
-3. 逻辑崩溃：push_back 的三重死局 (扣 20 分)
-这是你这段代码里问题最大的函数，有三个致命伤：
+element[size] = e; // 正确，直接拷贝值
 
-无限死循环/越界：
-
-C++
-
-T* newData = new T[capacity*2];
-场景：刚开始 capacity 是 0。0 * 2 = 0。
-
-后果：你申请了 0 大小的内存，然后往里面写数据 -> 内存越界崩溃。
-
-变量作用域错误 (编译不过)：
-
-C++
-
-for (size_t i = 0; i < size; i++) { ... }
-newData[i] = element; // ❌ 这里的 i 已经未定义了！
-i 只在 for 循环里有效。
-
-内存泄漏 (Memory Leak)：
-
-你让 data = newData;，但是旧的 data 指向的内存没释放！旧房子直接丢了。
-
-4. 接口设计问题 (扣 10 分)
+❌ 错误 3：push_back 忘记更新 capacity
 你的代码：
 
 C++
 
-void push_back(T* element) // ❌
-分析： MyVector<int> 应该存 int，而不是 int*。标准写法是传引用 const T& val。
+// 在扩容逻辑里
+NewElement = new T[...];
+// ... 搬运 ...
+element = NewElement;
+// 结束了？capacity 还没变呢！
+
+❌ 错误 4：变量未声明
+你的代码：
+
+C++
+
+NewElement = new T[...]; // NewElement 是啥类型？
+分析： C++ 是强类型语言，必须声明类型。 修正：
+
+C++
+
+T* NewElement = new T[...];
