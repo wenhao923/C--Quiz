@@ -1,130 +1,146 @@
 template <typename T>
-class MyVector{
+class MyVector {
 public:
-    MyVector() {}
-    ~MyVector() {
-        delete[] element;
-    }
-    MyVector(const MyVector& other) : size(other.size), capacity(other.capacity) {
-        element = new T[capacity];
-        for (size_t i = 0; i < size; i++)
-        {
-            element[i] = other.element[i]; // T的赋值函数要做好？
-        }
-    }
-    MyVector(MyVector&& other) : element(other.element), size(other.size), capacity(other.capacity) {
-        other.element = nullptr;
-        other.size = 0;
-        other.capacity = 0;
-    }
-
-    MyVector& operator=(const MyVector& other) : size(other.size), capacity(other.capacity) {
-        if (this != &other)
-        {
-            delete[] element;
-
-            element = new T[capacity];
-            for (size_t i = 0; i < size; i++)
-            {
-                element[i] = other.element[i]; // T的赋值函数要做好？
-            }
-        }
-        return *this;
-    }
-
-    MyVector& operator=(MyVector&& other) {
-        if (this != &other)
-        {
-            delete[] element;
-
-            element = other.element;
-            size = other.size;
-            capacity = other.capacity;
-
-            other.element = nullptr;
-            other.size = 0;
-            other.capacity = 0;
-        }
-        return *this;
-    }
-
-    void push_back(const T& e) {
-        if (size == capacity)
-        {
-            NewElement = new T[size == 0 ? 1 : capacity * 2];
-            for (size_t i = 0; i < size; i++)
-            {
-                NewElement[i] = element[i]; // T的赋值函数要做好？
-            }
-            delete[] element;
-            element = NewElement;   // 可以在原element后面拓展内存么？
-        }
-
-        element[size] = &e;
-        size++;
-    }
+    MyVector() {};
+    ~MyVector() { delete[] data; }
+    MyVector(const MyVector&);
+    MyVector(MyVector&&);
+    MyVector& operator=(const MyVector&);
+    MyVector& operator=(MyVector&&);
+    void push_back(const T&);
 private:
-    T* element = nullptr;   // 可以表示多个数量么？
-    size_t size = 0;
+    T* data = nullptr;
     size_t capacity = 0;
+    size_t size = 0;    // 为什么用size_t？
 };
 
+template <typename T>
+MyVector::MyVector(const MyVector& other)
+{
+    capacity = other.capacity;
+    size = other.size;
 
-60分
-
-❌ 错误 1：赋值运算符不能用“初始化列表”
-你的代码：
-
-C++
-
-MyVector& operator=(const MyVector& other) : size(other.size), capacity(other.capacity) { // 错误！
-分析： 冒号后面的初始化列表（: size(...)）只能用在构造函数里。赋值函数（operator=）是普通函数，只能在函数体的大括号里写赋值语句。 修正：
-
-C++
-
-MyVector& operator=(const MyVector& other) {
-    // ... 前面的检查 ...
-    size = other.size;         // 写在函数体里
-    capacity = other.capacity; // 写在函数体里
+    data = new T[capacity];
+    for (size_t i = 0; i < count; i++) {
+        data[i] = other[i];
+    }
 }
 
-❌ 错误 2：push_back 类型不匹配
+template <typename T>
+MyVector::MyVector(MyVector&& other)
+{
+    capacity = other.capacity;
+    size = other.size;
+    data = other.data;
+
+    other.capacity = 0;
+    other.size = 0;
+    other.data = nullptr;
+}
+
+template <typename T>
+MyVector& MyVector::operator=(const MyVector& other)
+{
+    if (this != &other)
+    {
+        capacity = other.capacity;
+        size = other.size;
+
+        data = new T[capacity];
+        for (size_t i = 0; i < count; i++) {
+            data[i] = other[i];
+        }
+    }
+    return *this;
+}
+
+template <typename T>
+MyVector& MyVector::operator=(MyVector&& other)
+{
+    if (this != &other)
+    {
+        capacity = other.capacity;
+        size = other.size;
+        data = other.data;
+
+        other.capacity = 0;
+        other.size = 0;
+        other.data = nullptr;
+    }
+    return *this;
+}
+
+template <typename T>
+void push_back(const T& e) 
+{
+    if (size == capacity)
+    {
+        size_t newCap = capcity == 0 ? 1 : capacity * 2;
+        T* newData = new T[newCap];
+        capcacity = newCap;
+        
+        for (size_t i = 0; i < count; i++) {
+            newData[i] = std::move(data[i]);   //调用T的赋值构造？
+        }
+        delete data[];
+    }
+    data[size++] = std::move(e);   //调用T的赋值构造？
+}
+
+1. 语法灾难：类外实现的模板写法
 你的代码：
 
 C++
 
-element[size] = &e; // 错误！
-分析：
-
-element[size] 的类型是 T（对象本身）。
-
-&e 的类型是 T*（对象的地址）。
-
-你不能把一个地址赋给一个对象。 修正：
+template <typename T>
+MyVector::MyVector(const MyVector& other) { ... } // ❌ 编译错误
+分析： MyVector 是一个模板类，不是普通类。在类外写函数时，必须告诉编译器它是属于 MyVector<T> 的。 修正：
 
 C++
 
-element[size] = e; // 正确，直接拷贝值
+template <typename T>
+MyVector<T>::MyVector(const MyVector& other) { ... } // ✅ 加上 <T>
+所有类外函数都要改！
 
-❌ 错误 3：push_back 忘记更新 capacity
+2. 逻辑错误：赋值运算符里的内存泄漏
 你的代码：
 
 C++
 
-// 在扩容逻辑里
-NewElement = new T[...];
-// ... 搬运 ...
-element = NewElement;
-// 结束了？capacity 还没变呢！
+// 拷贝赋值 & 移动赋值
+if (this != &other) {
+    // 这里还没 delete[] data 呢！
+    data = new T[capacity]; // ❌ 原来的 data 指向的内存丢了（泄漏）
+    // ...
+}
+修正： 必须先 delete[] data，再接管新内存或新指针。
 
-❌ 错误 4：变量未声明
+2. 逻辑错误：赋值运算符里的内存泄漏
 你的代码：
 
 C++
 
-NewElement = new T[...]; // NewElement 是啥类型？
-分析： C++ 是强类型语言，必须声明类型。 修正：
+// 拷贝赋值 & 移动赋值
+if (this != &other) {
+    // 这里还没 delete[] data 呢！
+    data = new T[capacity]; // ❌ 原来的 data 指向的内存丢了（泄漏）
+    // ...
+}
+修正： 必须先 delete[] data，再接管新内存或新指针。
+
+3. 变量未定义
+你的代码：
 
 C++
 
-T* NewElement = new T[...];
+for (size_t i = 0; i < count; i++) // ❌ count 是谁？
+修正： 应该是 size。
+
+4. push_back 的致命 Bug (老问题)
+你的代码：
+
+C++
+
+delete data[]; // ❌ 语法错误
+// 漏了一行关键代码！
+分析： 你删了旧 data，但是没把 newData 给 data。data 变成了野指针。 修正： delete[] data; data = newData;
