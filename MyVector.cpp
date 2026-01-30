@@ -1,8 +1,8 @@
-template <typename T>
+template<typename T>
 class MyVector {
 public:
-    MyVector() {};
-    ~MyVector() { delete[] data; }
+    MyVector() {}
+    ~MyVector() { delete[] data; }  // delete[] 在做什么事情？
     MyVector(const MyVector&);
     MyVector(MyVector&&);
     MyVector& operator=(const MyVector&);
@@ -11,24 +11,23 @@ public:
 private:
     T* data = nullptr;
     size_t capacity = 0;
-    size_t size = 0;    // 为什么用size_t？
+    size_t size = 0;
 };
 
-template <typename T>
-MyVector::MyVector(const MyVector& other)
+template<typename T>
+MyVector<T>::MyVector(const MyVector& other)
 {
     capacity = other.capacity;
     size = other.size;
-
     data = new T[capacity];
-    for (size_t i = 0; i < count; i++) {
-        data[i] = other[i];
+    for (size_t i = 0; i < size; i++)
+    {
+        data[i] = other.data[i];    // T的拷贝赋值，平凡类直接赋值（浅拷贝？），其他的需要深拷贝
     }
 }
 
-template <typename T>
-MyVector::MyVector(MyVector&& other)
-{
+template<typename T>
+MyVector<T>::MyVector(MyVector&& other) {
     capacity = other.capacity;
     size = other.size;
     data = other.data;
@@ -38,27 +37,30 @@ MyVector::MyVector(MyVector&& other)
     other.data = nullptr;
 }
 
-template <typename T>
-MyVector& MyVector::operator=(const MyVector& other)
-{
-    if (this != &other)
+template<typename T>
+MyVector<T>& MyVector<T>::operator=(const MyVector& other) {    // 为什么定义返回类型加<T>, 参数不加、声明不加
+    if (this != other)
     {
+        delete[] data;
+
         capacity = other.capacity;
         size = other.size;
-
         data = new T[capacity];
-        for (size_t i = 0; i < count; i++) {
-            data[i] = other[i];
+
+        for (size_t i = 0; i < size; i++)
+        {
+            data[i] = other.data[i];
         }
     }
     return *this;
 }
 
-template <typename T>
-MyVector& MyVector::operator=(MyVector&& other)
-{
-    if (this != &other)
+template<typename T>
+MyVector<T>& MyVector<T>::operator=(MyVector&& other) {
+    if (this != other)
     {
+        delete[] data;
+
         capacity = other.capacity;
         size = other.size;
         data = other.data;
@@ -70,77 +72,54 @@ MyVector& MyVector::operator=(MyVector&& other)
     return *this;
 }
 
-template <typename T>
-void push_back(const T& e) 
-{
+template<typename T>
+void MyVector<T>::push_back(const T& e) {
     if (size == capacity)
     {
-        size_t newCap = capcity == 0 ? 1 : capacity * 2;
-        T* newData = new T[newCap];
-        capcacity = newCap;
-        
-        for (size_t i = 0; i < count; i++) {
-            newData[i] = std::move(data[i]);   //调用T的赋值构造？
+        size_t newCapacity = capacity == 0 ? 1 : capacity * 2;
+        T* newData = new T[newCapacity];
+        for (size_t i = 0; i < size; i++)
+        {
+            newData[i] = std::move(data[i]);
         }
-        delete data[];
+
+        capacity = newCapacity;
+        delete[] data;
+        data = newData;
     }
-    data[size++] = std::move(e);   //调用T的赋值构造？
+    data[i++] = std::move(e);   // 这里move有用么？e是栈上定义的话，还能move并存入么？如果是堆上定义的呢？
 }
 
-1. 语法灾难：类外实现的模板写法
+85分
+
+1. 代码纠错 (Bug Fixes)
+❌ 错误 1：指针与引用的比较
 你的代码：
 
 C++
 
-template <typename T>
-MyVector::MyVector(const MyVector& other) { ... } // ❌ 编译错误
-分析： MyVector 是一个模板类，不是普通类。在类外写函数时，必须告诉编译器它是属于 MyVector<T> 的。 修正：
+if (this != other) // error: invalid operands to binary expression ('MyVector<T> *' and 'const MyVector<T>')
+分析：
+
+this 是一个指针（Pointer）。
+
+other 是一个引用（Reference）。
+
+指针不能直接和引用比较。 修正： 必须取 other 的地址。
 
 C++
 
-template <typename T>
-MyVector<T>::MyVector(const MyVector& other) { ... } // ✅ 加上 <T>
-所有类外函数都要改！
+if (this != &other)
 
-2. 逻辑错误：赋值运算符里的内存泄漏
+❌ 错误 2：变量未定义
 你的代码：
 
 C++
 
-// 拷贝赋值 & 移动赋值
-if (this != &other) {
-    // 这里还没 delete[] data 呢！
-    data = new T[capacity]; // ❌ 原来的 data 指向的内存丢了（泄漏）
-    // ...
-}
-修正： 必须先 delete[] data，再接管新内存或新指针。
-
-2. 逻辑错误：赋值运算符里的内存泄漏
-你的代码：
+// 在 push_back 最后
+data[i++] = std::move(e); // error: use of undeclared identifier 'i'
+分析： i 是你在 if 块里定义的局部变量，出了 if 就没了。这里应该用类的成员变量 size。 修正：
 
 C++
 
-// 拷贝赋值 & 移动赋值
-if (this != &other) {
-    // 这里还没 delete[] data 呢！
-    data = new T[capacity]; // ❌ 原来的 data 指向的内存丢了（泄漏）
-    // ...
-}
-修正： 必须先 delete[] data，再接管新内存或新指针。
-
-3. 变量未定义
-你的代码：
-
-C++
-
-for (size_t i = 0; i < count; i++) // ❌ count 是谁？
-修正： 应该是 size。
-
-4. push_back 的致命 Bug (老问题)
-你的代码：
-
-C++
-
-delete data[]; // ❌ 语法错误
-// 漏了一行关键代码！
-分析： 你删了旧 data，但是没把 newData 给 data。data 变成了野指针。 修正： delete[] data; data = newData;
+data[size++] = std::move(e);
