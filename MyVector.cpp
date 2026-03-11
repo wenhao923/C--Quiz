@@ -1,87 +1,114 @@
 template<typename T>
 class MyVector {
 public:
-    MyVector() {}
-    ~MyVector() noexcept { delete[] data; }  // delete[] 在做什么事情？
-    MyVector(const MyVector&);
-    MyVector(MyVector&&) noexcept;
-    MyVector& operator=(MyVector) noexcept;
-    MyVector& operator=(MyVector&&) noexcept;
-    void push_back(const T&);
-private:
-    void swap(MyVector& rhs) {
-        using std::swap;
-        swap(data, rhs.data);
-        swap(capacity, rhs.capacity);
-        swap(size, rhs.size);
+    MyVector() noexcept = default;
+    ~MyVector() noexcept
+    { 
+        release();
     }
 
+    MyVector(const MyVector&);
+    MyVector(MyVector&& other) noexcept : data(other.data), size(other.size), capacity(other.capacity) {
+        other.data = nullptr;
+        other.size = 0;
+        other.capacity = 0;
+    };
+
+    MyVector& operator=(MyVector);
+
+    void push_back(const T&);
+    void push_back(T&&);
+
+    template<typename... Args>
+    void emplace_back(Args&&...);
+private:
     T* data = nullptr;
-    size_t capacity = 0;
     size_t size = 0;
+    size_t capacity = 0;
+
+    void release() noexcept {
+        if (data != nullptr) {
+            for (size_t i = 0; i < size; ++i) {
+                data[i].~T(); 
+            }
+
+            ::operator delete(data);
+        }
+
+        data = nullptr;
+        size = 0;
+        capacity = 0;
+    }
+
+    void swap(MyVector& other) noexcept {
+        std::swap(data, other.data);
+        std::swap(size, other.size);
+        std::swap(capacity, other.capacity);
+    }
+
+    void checkAndExpand() {
+        if (size == capacity)
+        {
+            size_t newCapacity = (size == 0 ? 1 : size * 2);
+
+            auto newData = static_cast<T*>(::operator new(sizeof(T) * newCapacity));
+            for (size_t i = 0; i < size; i++)
+            {
+                new (&newData[i]) T(std::move_if_noexcept(data[i]));
+            }
+
+            for (size_t i = 0; i < size; ++i) {
+                data[i].~T(); 
+            }
+        
+            ::operator delete(data);
+
+            data = newData;
+            capacity = newCapacity;
+        }
+    }
 };
 
 template<typename T>
 MyVector<T>::MyVector(const MyVector& other)
 {
-    data = new T[capacity];
-    capacity = other.capacity;
-    size = other.size;
-    for (size_t i = 0; i < size; i++)
-    {
-        data[i] = other.data[i];    // T的拷贝赋值，平凡类直接赋值（浅拷贝？），其他的需要深拷贝
-    }
-}
-
-template<typename T>
-MyVector<T>::MyVector(MyVector&& other) {
-    capacity = other.capacity;
-    size = other.size;
-    data = other.data;
-
-    other.capacity = 0;
-    other.size = 0;
-    other.data = nullptr;
-}
-
-template<typename T>
-MyVector<T>& MyVector<T>::operator=(MyVector rhs) {
-    this->swap(rhs);
+    data = static_cast<T*>(::operator new(sizeof(T) * other.capacity));    
     
-    return *this;
+    for (size_t i = 0; i < other.size; i++)
+    {
+        new (&data[i]) T(other.data[i]);
+    }
+        
+    size = other.size;
+    capacity = other.capacity;
 }
 
 template<typename T>
-MyVector<T>& MyVector<T>::operator=(MyVector&& other) {
-    if (this != other)
-    {
-        delete[] data;
-
-        capacity = other.capacity;
-        size = other.size;
-        data = other.data;
-
-        other.capacity = 0;
-        other.size = 0;
-        other.data = nullptr;
-    }
+MyVector<T>& MyVector<T>::operator=(MyVector rhs)
+{
+    swap(rhs);
     return *this;
 }
 
 template<typename T>
 void MyVector<T>::push_back(const T& e) {
-    if (size == capacity)
-    {
-        size_t newCapacity = capacity == 0 ? 1 : capacity * 2;
-        T* newData = new T[newCapacity];
-        for (size_t i = 0; i < size; i++)
-        {
-            newData[i] = std::move(data[i]);
-        }
+    checkAndExpand();
+    new (&data[size]) T(e);
+    size++;
+}
 
-        capacity = newCapacity;
-        delete[] data;
-        data = newData;
-    }
-    data[i++] = std::move(e);
+template<typename T>
+void MyVector<T>::push_back(T&& e) {
+    checkAndExpand();
+    new (&data[size]) T(std::move(e));
+    size++;
+}
+
+template<typename T>
+template<typename... Args>
+void MyVector<T>::emplace_back(Args&&... args) {
+    checkAndExpand();
+
+    new (&data[size]) T(std::forward<Args>(args)...);
+    size++;
 }
