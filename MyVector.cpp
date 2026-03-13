@@ -21,6 +21,32 @@ public:
 
     template<typename... Args>
     void emplace_back(Args&&...);
+
+    Iterator begin() {
+        return Iterator(data);
+    };
+    Iterator end() {
+        return Iterator(data+size);
+    };
+
+public:
+    class Iterator {
+    public:
+        Iterator(T* data) : pointer(data) {}
+        T& operator*() {
+            return *pointer;
+        }
+        Iterator& operator++() {
+            pointer++;
+            return *this;
+        }
+
+        bool operator!=(Iterator rhs) {
+            return pointer != rhs.pointer;
+        }
+    private:
+        T* pointer = nullptr;
+    }
 private:
     T* data = nullptr;
     size_t size = 0;
