@@ -3,6 +3,16 @@ class MyVector {
 public:
     class Iterator;
     MyVector() noexcept = default;
+
+    MyVector(size_t count) : capacity(count), size(count) {
+        data = static_cast<T*>(::operator new(sizeof(T) * count));
+
+        for (size_t i = 0; i < capacity; i++)
+        {
+            new (&data[i]) T();
+        }
+    }
+
     ~MyVector() noexcept
     { 
         release();
@@ -16,6 +26,10 @@ public:
     };
 
     MyVector& operator=(MyVector);
+
+    T& operator[](size_t i) {
+        return data[i];
+    }
 
     void push_back(const T&);
     void push_back(T&&);

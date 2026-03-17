@@ -5,6 +5,8 @@
 #include "imgui.h"
 #include "imgui-SFML.h"
 
+#include "MyVector.h"
+
 // --- 全局常量设置 ---
 const int WINDOW_WIDTH = 1280;
 const int WINDOW_HEIGHT = 720;
@@ -26,8 +28,11 @@ struct Boid {
 };
 
 // 双缓冲状态数组 (即便单线程也保留，防止计算先后顺序导致的误差)
-std::vector<Boid> boids_read(NUM_BOIDS);
-std::vector<Boid> boids_write(NUM_BOIDS);
+template<typename T>
+using Vector = MyVector<T>;
+
+Vector<Boid> boids_read(NUM_BOIDS);
+Vector<Boid> boids_write(NUM_BOIDS);
 
 // --- 辅助数学函数 ---
 float get_length(const sf::Vector2f& v) {
@@ -133,7 +138,7 @@ int main() {
         // 3. 更新 ImGui 状态
         ImGui::SFML::Update(window, deltaClock.restart());
 
-// ==========================================
+        // ==========================================
         // [ImGui 面板绘制 - 纯英文版]
         // ==========================================
         ImGui::Begin("Boids Swarm Controller"); 
