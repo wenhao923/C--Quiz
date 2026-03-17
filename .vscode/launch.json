@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug (macOS ARM64)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/build/main",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            // 强制指定使用 Mac 原生的 LLDB 调试器
+            "MIMode": "lldb",
+            // 核心魔法：让程序运行时能自动找到 SFML 的动态库
+            "environment": [
+                {
+                    "name": "DYLD_LIBRARY_PATH",
+                    "value": "${workspaceFolder}/thirdParty/SFML/macos-arm64/lib:${env:DYLD_LIBRARY_PATH}"
+                }
+            ],
+            "externalConsole": false,
+            // 绑定咱们刚才修好路径的终极编译任务
+            "preLaunchTask": "Build (Cross-Platform)" 
+        }
+    ]
+}

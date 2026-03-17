@@ -4,7 +4,7 @@ public:
     class Iterator;
     MyVector() noexcept = default;
 
-    MyVector(size_t count) : capacity(count), size(count) {
+    MyVector(size_t count) : size(count), capacity(count){
         data = static_cast<T*>(::operator new(sizeof(T) * count));
 
         for (size_t i = 0; i < capacity; i++)
