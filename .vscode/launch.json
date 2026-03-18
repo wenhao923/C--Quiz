@@ -5,7 +5,7 @@
             "name": "Debug (Windows MSVC)",
             "type": "cppvsdbg", 
             "request": "launch",
-            "program": "${workspaceFolder}/build/${input:projectName}/${input:projectName}.exe",
+            "program": "${workspaceFolder}/build/${config:project.run.selectedProject}/${config:project.run.selectedProject}.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -26,26 +26,13 @@
             "name": "Debug (macOS ARM64)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/${input:projectName}/${input:projectName}",
+            "program": "${workspaceFolder}/build/${config:project.run.selectedProject}/${config:project.run.selectedProject}",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "MIMode": "lldb",
             "externalConsole": false,
             "preLaunchTask": "Build Project (macOS ARM64)" 
-        }
-    ],
-    "inputs": [
-        {
-            "id": "projectName",         
-            "type": "pickString",        
-            "description": "请选择今天要跑哪个项目？", 
-            "options": [
-                "Boids",                 
-                "FutureGame",            
-                "OtherQuiz"              
-            ],
-            "default": "Boids"           
         }
     ]
 }

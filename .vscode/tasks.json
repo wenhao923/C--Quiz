@@ -18,7 +18,7 @@
                 "/I${workspaceFolder}/core",
 
                 // 源码待编译
-                "${workspaceFolder}/projects/${input:projectName}/main.cpp",
+                "${workspaceFolder}/projects/${config:project.run.selectedProject}/main.cpp",
                 "${workspaceFolder}/core/MyThreadPool.cpp",
                 "${workspaceFolder}/thirdParty/imgui/imgui.cpp",
                 "${workspaceFolder}/thirdParty/imgui/imgui_draw.cpp",
@@ -27,9 +27,9 @@
                 "${workspaceFolder}/thirdParty/imgui-sfml/imgui-SFML.cpp",
 
                 // 输出
-                "/Fo${workspaceFolder}/build/${input:projectName}/", 
-                "/Fd${workspaceFolder}/build/${input:projectName}/", 
-                "/Fe${workspaceFolder}/build/${input:projectName}/${input:projectName}.exe",
+                "/Fo${workspaceFolder}/build/${config:project.run.selectedProject}/", 
+                "/Fd${workspaceFolder}/build/${config:project.run.selectedProject}/", 
+                "/Fe${workspaceFolder}/build/${config:project.run.selectedProject}/${config:project.run.selectedProject}.exe",
 
                 // 静态链接
                 "/link",
@@ -64,7 +64,7 @@
                 "-I${workspaceFolder}/core",
 
                 // 源码待编译
-                "${workspaceFolder}/projects/${input:projectName}/main.cpp",
+                "${workspaceFolder}/projects/${config:project.run.selectedProject}/main.cpp",
                 "${workspaceFolder}/core/MyThreadPool.cpp",
                 "${workspaceFolder}/thirdParty/imgui/imgui.cpp",
                 "${workspaceFolder}/thirdParty/imgui/imgui_draw.cpp",
@@ -81,7 +81,7 @@
                 "OpenGL",
                 "-Wl,-rpath,${workspaceFolder}/thirdParty/SFML/macos-arm64/lib",
                 "-o",
-                "${workspaceFolder}/build/${input:projectName}/${input:projectName}"
+                "${workspaceFolder}/build/${config:project.run.selectedProject}/${config:project.run.selectedProject}"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -91,19 +91,6 @@
             ],
             "group": "build",
             "detail": "Mac 下专用的 Clang 编译任务"
-        }
-    ],
-    "inputs": [
-        {
-            "id": "projectName",         // 变量名，一会我们在上面用 ${input:projectName} 召唤它
-            "type": "pickString",        // 类型：下拉菜单选项 (让你不用手动敲键盘)
-            "description": "请选择今天要跑哪个项目？", 
-            "options": [
-                "Boids",                 // 你的鱼群项目
-                "FutureGame",            // 未来的新项目
-                "OtherQuiz"              // 平时的测试沙盒
-            ],
-            "default": "Boids"           // 默认选中鱼群
         }
     ]
 }
