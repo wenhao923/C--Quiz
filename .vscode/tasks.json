@@ -2,28 +2,36 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Build (Windows MSVC)",
+            "label": "Build Project (Windows MSVC)",
             "type": "cppbuild",
-            "command": "cl.exe",
+            "command": "if not exist build\\${input:projectName} mkdir build\\${input:projectName} && cl.exe",
             "args": [
                 "/Zi",
                 "/EHsc",
                 "/nologo",
                 "/utf-8",
                 "/wd4819",
+                // include目录
                 "/I${workspaceFolder}/thirdParty/SFML/windows-x64/include",
                 "/I${workspaceFolder}/thirdParty/imgui",
                 "/I${workspaceFolder}/thirdParty/imgui-sfml",
-                "/I${workspaceFolder}",
-                "/Fo${fileDirname}/build/",
-                "/Fd${fileDirname}/build/",
-                "/Fe${fileDirname}/build/main.exe",
-                "${fileDirname}/main.cpp",
+                "/I${workspaceFolder}/core",
+
+                // 源码待编译
+                "${workspaceFolder}/projects/${input:projectName}/main.cpp",
+                "${workspaceFolder}/core/MyThreadPool.cpp",
                 "${workspaceFolder}/thirdParty/imgui/imgui.cpp",
                 "${workspaceFolder}/thirdParty/imgui/imgui_draw.cpp",
                 "${workspaceFolder}/thirdParty/imgui/imgui_tables.cpp",
                 "${workspaceFolder}/thirdParty/imgui/imgui_widgets.cpp",
                 "${workspaceFolder}/thirdParty/imgui-sfml/imgui-SFML.cpp",
+
+                // 输出
+                "/Fo${workspaceFolder}/build/${input:projectName}/", 
+                "/Fd${workspaceFolder}/build/${input:projectName}/", 
+                "/Fe${workspaceFolder}/build/${input:projectName}/${input:projectName}.exe",
+
+                // 静态链接
                 "/link",
                 "/LIBPATH:${workspaceFolder}/thirdParty/SFML/windows-x64/lib",
                 "sfml-graphics.lib",
@@ -41,24 +49,30 @@
             "detail": "Windows 下专用的 MSVC 编译任务"
         },
         {
-            "label": "Build (macOS ARM64)",
+            "label": "Build Project (macOS ARM64)",
             "type": "shell",
-            "command": "clang++",
+            "command": "mkdir -p ${workspaceFolder}/build/${input:projectName} && clang++",
             "args": [
                 "-g",
                 "-std=c++17",
                 "-Wall",
                 "-Wno-deprecated-declarations",
+                // include目录
                 "-I${workspaceFolder}/thirdParty/SFML/macos-arm64/include",
                 "-I${workspaceFolder}/thirdParty/imgui",
                 "-I${workspaceFolder}/thirdParty/imgui-sfml",
-                "-I${workspaceFolder}",
-                "${fileDirname}/main.cpp",
+                "-I${workspaceFolder}/core",
+
+                // 源码待编译
+                "${workspaceFolder}/projects/${input:projectName}/main.cpp",
+                "${workspaceFolder}/core/MyThreadPool.cpp",
                 "${workspaceFolder}/thirdParty/imgui/imgui.cpp",
                 "${workspaceFolder}/thirdParty/imgui/imgui_draw.cpp",
                 "${workspaceFolder}/thirdParty/imgui/imgui_tables.cpp",
                 "${workspaceFolder}/thirdParty/imgui/imgui_widgets.cpp",
                 "${workspaceFolder}/thirdParty/imgui-sfml/imgui-SFML.cpp",
+
+                // 链接
                 "-L${workspaceFolder}/thirdParty/SFML/macos-arm64/lib",
                 "-lsfml-graphics",
                 "-lsfml-window",
@@ -67,7 +81,7 @@
                 "OpenGL",
                 "-Wl,-rpath,${workspaceFolder}/thirdParty/SFML/macos-arm64/lib",
                 "-o",
-                "${fileDirname}/build/main"
+                "${workspaceFolder}/build/${input:projectName}/${input:projectName}"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -77,6 +91,19 @@
             ],
             "group": "build",
             "detail": "Mac 下专用的 Clang 编译任务"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "projectName",         // 变量名，一会我们在上面用 ${input:projectName} 召唤它
+            "type": "pickString",        // 类型：下拉菜单选项 (让你不用手动敲键盘)
+            "description": "请选择今天要跑哪个项目？", 
+            "options": [
+                "Boids",                 // 你的鱼群项目
+                "FutureGame",            // 未来的新项目
+                "OtherQuiz"              // 平时的测试沙盒
+            ],
+            "default": "Boids"           // 默认选中鱼群
         }
     ]
 }
