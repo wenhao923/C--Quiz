@@ -1,4 +1,4 @@
-﻿#include <SFML/Graphics.hpp>
+#include <SFML/Graphics.hpp>
 #include <iostream>
 #include <cmath>
 
@@ -107,7 +107,7 @@ void update_single_boid(int index) {
 
 
 int main() {
-    sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "单线程 Boids 鱼群基准测试");
+    sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Boids Swarm Simulation");
     window.setFramerateLimit(120);
 
     // 1. 初始化 ImGui-SFML
