@@ -2,6 +2,32 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug (Windows MSVC)",
+            "type": "cppvsdbg", // 👈 核心魔法 1：必须用微软专属的 VS 调试器
+            "request": "launch",
+            "program": "${fileDirname}/build/main.exe", // 👈 核心魔法 2：Windows 可执行文件必须带 .exe
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            
+            // 👈 核心魔法 3：Windows 找 .dll 全靠 PATH 环境变量！
+            // 这样写，你就不需要手动把 dll 拷到 build 文件夹里了
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "${workspaceFolder}/thirdParty/SFML/windows-x64/bin;${env:PATH}"
+                }
+            ],
+            
+            "console": "integratedTerminal", // 让程序的 cout 输出直接显示在 VS Code 下方的终端里
+            
+            "preLaunchTask": "Build (Windows MSVC)"
+        },
+
+        // ==========================================
+        // 🍎 2. macOS ARM64 专属调试通道
+        // ==========================================
+        {
             "name": "Debug (macOS ARM64)",
             "type": "cppdbg",
             "request": "launch",
@@ -9,9 +35,7 @@
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            // 强制指定使用 Mac 原生的 LLDB 调试器
             "MIMode": "lldb",
-            // 核心魔法：让程序运行时能自动找到 SFML 的动态库
             "environment": [
                 {
                     "name": "DYLD_LIBRARY_PATH",
@@ -19,8 +43,8 @@
                 }
             ],
             "externalConsole": false,
-            // 绑定咱们刚才修好路径的终极编译任务
-            "preLaunchTask": "Build (Cross-Platform)" 
+            // 👇 精准绑定 tasks.json 里的 Mac 编译任务
+            "preLaunchTask": "Build (macOS ARM64)" 
         }
     ]
 }

@@ -2,109 +2,81 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "type": "shell",
-            "label": "Build (Cross-Platform)",
-            "command": "echo",
+            "label": "Build (Windows MSVC)",
+            "type": "cppbuild",
+            "command": "cl.exe",
             "args": [
-                "Start building..."
+                "/Zi",
+                "/EHsc",
+                "/nologo",
+                "/utf-8",
+                "/wd4819",
+                "/I${workspaceFolder}/thirdParty/SFML/windows-x64/include",
+                "/I${workspaceFolder}/thirdParty/imgui",
+                "/I${workspaceFolder}/thirdParty/imgui-sfml",
+                "/I${workspaceFolder}",
+                "/Fo${fileDirname}/build/",
+                "/Fd${fileDirname}/build/",
+                "/Fe${fileDirname}/build/main.exe",
+                "${fileDirname}/main.cpp",
+                "${workspaceFolder}/thirdParty/imgui/imgui.cpp",
+                "${workspaceFolder}/thirdParty/imgui/imgui_draw.cpp",
+                "${workspaceFolder}/thirdParty/imgui/imgui_tables.cpp",
+                "${workspaceFolder}/thirdParty/imgui/imgui_widgets.cpp",
+                "${workspaceFolder}/thirdParty/imgui-sfml/imgui-SFML.cpp",
+                "/link",
+                "/LIBPATH:${workspaceFolder}/thirdParty/SFML/windows-x64/lib",
+                "sfml-graphics.lib",
+                "sfml-window.lib",
+                "sfml-system.lib",
+                "opengl32.lib"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "detail": "Cross-platform build for SFML + ImGui",
-            "windows": {
-                "command": "cl.exe",
-                "args": [
-                    "/Zi",
-                    "/EHsc",
-                    "/nologo",
-                    "/utf-8",
-                    "/I${workspaceFolder}/thirdParty/SFML/windows-x64/include",
-                    "/I${workspaceFolder}/thirdParty/imgui",
-                    "/I${workspaceFolder}/thirdParty/imgui-sfml",
-                    "/I${workspaceFolder}",
-                    "/I${fileDirname}",
-                    "/Fo${workspaceFolder}/build/",
-                    "/Fd${workspaceFolder}/build/",
-                    "/Fe${fileDirname}/build/main.exe",
-                    "${fileDirname}/main.cpp",
-                    "${workspaceFolder}/thirdParty/imgui/imgui.cpp",
-                    "${workspaceFolder}/thirdParty/imgui/imgui_draw.cpp",
-                    "${workspaceFolder}/thirdParty/imgui/imgui_tables.cpp",
-                    "${workspaceFolder}/thirdParty/imgui/imgui_widgets.cpp",
-                    "${workspaceFolder}/thirdParty/imgui-sfml/imgui-SFML.cpp",
-                    "/link",
-                    "/LIBPATH:${workspaceFolder}/thirdParty/SFML/windows-x64/lib",
-                    "sfml-graphics.lib",
-                    "sfml-window.lib",
-                    "sfml-system.lib",
-                    "opengl32.lib"
-                ],
-                "problemMatcher": [
-                    "$msCompile"
-                ]
-            },
-            "osx": {
-                "command": "clang++",
-                "args": [
-                    "-g",
-                    "-std=c++17",
-                    "-Wall",
-                    "-Wno-deprecated-declarations",
-                    "-I${workspaceFolder}/thirdParty/SFML/macos-arm64/include",
-                    "-I${workspaceFolder}/thirdParty/imgui",
-                    "-I${workspaceFolder}/thirdParty/imgui-sfml",
-                    "-I${workspaceFolder}",
-                    "-I${fileDirname}",
-                    "${fileDirname}/main.cpp",
-                    "${workspaceFolder}/thirdParty/imgui/imgui.cpp",
-                    "${workspaceFolder}/thirdParty/imgui/imgui_draw.cpp",
-                    "${workspaceFolder}/thirdParty/imgui/imgui_tables.cpp",
-                    "${workspaceFolder}/thirdParty/imgui/imgui_widgets.cpp",
-                    "${workspaceFolder}/thirdParty/imgui-sfml/imgui-SFML.cpp",
-                    "-L${workspaceFolder}/thirdParty/SFML/macos-arm64/lib",
-                    "-lsfml-graphics",
-                    "-lsfml-window",
-                    "-lsfml-system",
-                    "-framework",
-                    "OpenGL",
-                    "-Wl,-rpath,${workspaceFolder}/thirdParty/SFML/macos-arm64/lib",
-                    "-o",
-                    "${fileDirname}/build/main"
-                ],
-                "problemMatcher": [
-                    "$gcc"
-                ]
-            }
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "group": "build",
+            "detail": "Windows 下专用的 MSVC 编译任务"
         },
         {
-            "type": "cppbuild",
-            "label": "C/C++: clang++ 生成活动文件",
-            "command": "/usr/bin/clang++",
+            "label": "Build (macOS ARM64)",
+            "type": "shell",
+            "command": "clang++",
             "args": [
-                "-fcolor-diagnostics",
-                "-fansi-escape-codes",
                 "-g",
-                "${file}",
+                "-std=c++17",
+                "-Wall",
+                "-Wno-deprecated-declarations",
+                "-I${workspaceFolder}/thirdParty/SFML/macos-arm64/include",
+                "-I${workspaceFolder}/thirdParty/imgui",
+                "-I${workspaceFolder}/thirdParty/imgui-sfml",
+                "-I${workspaceFolder}",
+                "${fileDirname}/main.cpp",
+                "${workspaceFolder}/thirdParty/imgui/imgui.cpp",
+                "${workspaceFolder}/thirdParty/imgui/imgui_draw.cpp",
+                "${workspaceFolder}/thirdParty/imgui/imgui_tables.cpp",
+                "${workspaceFolder}/thirdParty/imgui/imgui_widgets.cpp",
+                "${workspaceFolder}/thirdParty/imgui-sfml/imgui-SFML.cpp",
+                "-L${workspaceFolder}/thirdParty/SFML/macos-arm64/lib",
+                "-lsfml-graphics",
+                "-lsfml-window",
+                "-lsfml-system",
+                "-framework",
+                "OpenGL",
+                "-Wl,-rpath,${workspaceFolder}/thirdParty/SFML/macos-arm64/lib",
                 "-o",
-                "${fileDirname}/${fileBasenameNoExtension}"
+                "${fileDirname}/build/main"
             ],
             "options": {
-                "cwd": "${fileDirname}"
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [
                 "$gcc"
             ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "detail": "调试器生成的任务。"
+            "group": "build",
+            "detail": "Mac 下专用的 Clang 编译任务"
         }
     ]
 }
