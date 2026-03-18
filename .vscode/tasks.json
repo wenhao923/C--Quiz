@@ -4,7 +4,7 @@
         {
             "label": "Build Project (Windows MSVC)",
             "type": "cppbuild",
-            "command": "if not exist build\\${input:projectName} mkdir build\\${input:projectName} && cl.exe",
+            "command": "cl.exe",
             "args": [
                 "/Zi",
                 "/EHsc",
@@ -51,7 +51,7 @@
         {
             "label": "Build Project (macOS ARM64)",
             "type": "shell",
-            "command": "mkdir -p ${workspaceFolder}/build/${input:projectName} && clang++",
+            "command": "clang++",
             "args": [
                 "-g",
                 "-std=c++17",
