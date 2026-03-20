@@ -6,6 +6,7 @@
 #include "imgui-SFML.h"
 
 #include "MyVector.h"
+#include "MyThreadPool.h"
 
 // --- 全局常量设置 ---
 const int WINDOW_WIDTH = 1280;
@@ -16,6 +17,7 @@ const int NUM_BOIDS = 2000;          // 单线程下 2000 条已经是极限测�
 // [黑魔法区] 可以被 UI 实时修改的全局参数！
 // ==========================================
 float neighbor_radius = 50.0f; 
+float min_speed = 1.0f;
 float max_speed = 4.0f;        
 float weight_separation = 1.5f; 
 float weight_alignment = 0.05f; 
@@ -54,7 +56,6 @@ void update_single_boid(int index) {
     sf::Vector2f cohesion(0.0f, 0.0f);
     int total_neighbors = 0;
 
-    // 暴力遍历寻找邻居
     for (int i = 0; i < NUM_BOIDS; ++i) {
         if (i == index) continue;
         const Boid& other = boids_read[i];
@@ -62,49 +63,55 @@ void update_single_boid(int index) {
         float dist = get_distance(me.position, other.position);
 
         if (dist > 0 && dist < neighbor_radius) {
-            // 1. 分离 (越近斥力越大)
             sf::Vector2f diff = me.position - other.position;
-            separation += sf::Vector2f(diff.x / dist, diff.y / dist);
-            // 2. 对齐 (累加邻居速度)
+            
+            // 💡 修复 1：分离力加入距离反比法则 (越近斥力越大)
+            separation += sf::Vector2f((diff.x / dist) / dist, (diff.y / dist) / dist);
+            
             alignment += other.velocity;
-            // 3. 凝聚 (累加邻居位置)
             cohesion += other.position;
             total_neighbors++;
         }
     }
 
     sf::Vector2f new_velocity = me.velocity;
+    
     if (total_neighbors > 0) {
+        // 💡 修复 2：全军平权！分离力也必须平均化，防止被超级放大
+        separation = sf::Vector2f(separation.x / total_neighbors, separation.y / total_neighbors);
         alignment = sf::Vector2f(alignment.x / total_neighbors, alignment.y / total_neighbors);
         cohesion = sf::Vector2f(cohesion.x / total_neighbors, cohesion.y / total_neighbors);
         
+        // 经典的 Boids 转向行为 (Steering = Desired - Current)
         alignment -= me.velocity;
         cohesion -= me.position;
         
-        // 使用动态权重
-        new_velocity += separation * weight_separation + alignment * weight_alignment + cohesion * weight_cohesion;
+        // 累加受力
+        new_velocity += separation * weight_separation 
+                      + alignment * weight_alignment 
+                      + cohesion * weight_cohesion;
     }
 
-    // 限制最大速度
+    // 💡 修复 3：加入最小速度限制，强迫鱼群永远保持游动
     float speed = get_length(new_velocity);
-    if (speed > max_speed) {
-        new_velocity = normalize(new_velocity) * max_speed;
+    
+    if (speed < min_speed && speed > 0.001f) {
+        new_velocity = (new_velocity / speed) * min_speed;
+    } else if (speed > max_speed) {
+        new_velocity = (new_velocity / speed) * max_speed;
     }
 
-    // 计算新位置
     sf::Vector2f new_position = me.position + new_velocity;
 
-    // 屏幕边缘环绕
+    // 屏幕边缘环绕 (保持不变)
     if (new_position.x < 0.0f) new_position.x += WINDOW_WIDTH;
     if (new_position.x >= WINDOW_WIDTH) new_position.x -= WINDOW_WIDTH;
     if (new_position.y < 0.0f) new_position.y += WINDOW_HEIGHT;
     if (new_position.y >= WINDOW_HEIGHT) new_position.y -= WINDOW_HEIGHT;
 
-    // 写入 write 缓冲区
     boids_write[index].velocity = new_velocity;
     boids_write[index].position = new_position;
 }
-
 
 int main() {
     sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Boids Swarm Simulation");
@@ -128,6 +135,8 @@ int main() {
     sf::VertexArray flockMesh(sf::Triangles, NUM_BOIDS * 3);
     sf::Clock deltaClock; // 用于 ImGui 跟踪时间
 
+    MyThreadPool threadPool;
+
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
@@ -147,6 +156,7 @@ int main() {
         ImGui::Separator();
         
         ImGui::Text("Entity Count: %d", NUM_BOIDS);
+        ImGui::SliderFloat("Min Speed", &min_speed, 0.1f, 10.0f);
         ImGui::SliderFloat("Max Speed", &max_speed, 1.0f, 15.0f);
         ImGui::SliderFloat("Vision Radius", &neighbor_radius, 10.0f, 150.0f);
         
@@ -166,8 +176,12 @@ int main() {
         // [逻辑更新区] - 单线程纯 for 循环顺序计算
         // ==========================================
         for (int i = 0; i < NUM_BOIDS; ++i) {
-            update_single_boid(i);
+            threadPool.enqueue_simple([i]() {
+                update_single_boid(i);
+            });
         }
+
+        threadPool.wait_all();
 
         // 帧结束：读写缓冲区交换
         std::swap(boids_read, boids_write);

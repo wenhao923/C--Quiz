@@ -11,7 +11,7 @@ MyThreadPool::MyThreadPool()
                 {
                     std::unique_lock<std::mutex> lock(this->queue_mutex);
 
-                    this->condition.wait(lock, [this]() {
+                    this->job_condition.wait(lock, [this]() {
                         return this->stop || !this->tasks.empty();
                     });
 
@@ -25,6 +25,15 @@ MyThreadPool::MyThreadPool()
                 }
 
                 task();
+
+                this->taskRuningCount--;
+                if (this->taskRuningCount == 0)
+                {
+                    {
+                        std::lock_guard<std::mutex> lock(wait_mutex);
+                    }
+                    this->tasks_complete.notify_one();
+                }
             }      
         });
     }
@@ -37,7 +46,7 @@ MyThreadPool::~MyThreadPool()
         this->stop = true;
     }
 
-    this->condition.notify_all();
+    this->job_condition.notify_all();
 
     for (std::thread &worker : this->workers)
     {
@@ -59,5 +68,15 @@ void MyThreadPool::enqueue_simple(std::function<void()> task)
         this->tasks.push(task);
     }
 
-    this->condition.notify_one();
+    this->taskRuningCount++;
+
+    this->job_condition.notify_one();
+}
+
+void MyThreadPool::wait_all()
+{
+    std::unique_lock<std::mutex> lock(this->wait_mutex);
+    this->tasks_complete.wait(lock, [this]() {
+                        return this->taskRuningCount == 0;
+                    });
 }
