@@ -1,10 +1,31 @@
 #pragma once
 #include <iostream>
+namespace INTERNAL { 
+    template<typename T>
+    class MyVectorIterator {
+    public:
+        MyVectorIterator(T* data) : pointer(data) {}
+        T& operator*() {
+            return *pointer;
+        }
+        MyVectorIterator& operator++() {
+            pointer++;
+            return *this;
+        }
+
+        bool operator!=(MyVectorIterator rhs) {
+            return pointer != rhs.pointer;
+        }
+    private:
+        T* pointer = nullptr;
+    }; 
+}
 
 template<typename T>
 class MyVector {
 public:
-    class Iterator;
+    using Iterator = INTERNAL::MyVectorIterator<T>;
+
     MyVector() noexcept = default;
 
     MyVector(size_t count) : size(count), capacity(count){
@@ -45,25 +66,6 @@ public:
     };
     Iterator end() {
         return Iterator(data+size);
-    };
-
-public:
-    class Iterator {
-    public:
-        Iterator(T* data) : pointer(data) {}
-        T& operator*() {
-            return *pointer;
-        }
-        Iterator& operator++() {
-            pointer++;
-            return *this;
-        }
-
-        bool operator!=(Iterator rhs) {
-            return pointer != rhs.pointer;
-        }
-    private:
-        T* pointer = nullptr;
     };
     
 private:
