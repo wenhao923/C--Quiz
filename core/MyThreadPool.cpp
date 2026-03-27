@@ -23,7 +23,6 @@ MyThreadPool::MyThreadPool()
                     task = std::move(this->tasks.front());
                     this->tasks.pop();
                 }
-
                 task();
 
                 this->taskRuningCount--;
