@@ -31,4 +31,9 @@
 - [ ] 内存池
 - [ ] Unordered_Map
 - [ ] String
-- [ ] Vulkan
+- [ ] 使用Vulkan渲染出三角形
+- [ ] 利用开源库（如 Assimp 或 cgltf）加载 3D 模型
+- [ ] 抽象出 Mesh、Material 和 Renderer 的概念
+- [ ] 实现一个数据驱动的材质系统
+- [ ] 实现延迟渲染: 构建 G-Buffer（几何缓冲区），将反照率（Albedo）、法线（Normal）、粗糙度/金属度（Roughness/Metallic）先存入多张纹理
+- [ ] 在全屏 Pass 中统一计算光照。体会将复杂度从 $O(N \times M)$ 降为 $O(N + M)$ 的快感。
