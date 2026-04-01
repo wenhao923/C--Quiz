@@ -4,7 +4,7 @@ namespace INTERNAL {
     template<typename T>
     class MyVectorIterator {
     public:
-        MyVectorIterator(T* data) : pointer(data) {}
+        MyVectorIterator(T* data_) : pointer(data_) {}
         T& operator*() {
             return *pointer;
         }
@@ -28,12 +28,12 @@ public:
 
     MyVector() noexcept = default;
 
-    MyVector(size_t count) : size(count), capacity(count){
-        data = static_cast<T*>(::operator new(sizeof(T) * count));
+    MyVector(size_t count) : size_(count), capacity_(count){
+        data_ = static_cast<T*>(::operator new(sizeof(T) * count));
 
-        for (size_t i = 0; i < capacity; i++)
+        for (size_t i = 0; i < capacity_; i++)
         {
-            new (&data[i]) T();
+            new (&data_[i]) T();
         }
     }
 
@@ -43,16 +43,20 @@ public:
     }
 
     MyVector(const MyVector&);
-    MyVector(MyVector&& other) noexcept : data(other.data), size(other.size), capacity(other.capacity) {
-        other.data = nullptr;
-        other.size = 0;
-        other.capacity = 0;
+    MyVector(MyVector&& other) noexcept : data_(other.data_), size_(other.size_), capacity_(other.capacity_) {
+        other.data_ = nullptr;
+        other.size_ = 0;
+        other.capacity_ = 0;
     };
 
     MyVector& operator=(MyVector);
 
     T& operator[](size_t i) {
-        return data[i];
+        return data_[i];
+    }
+
+    size_t size() const {
+        return size_;
     }
 
     void push_back(const T&);
@@ -62,56 +66,56 @@ public:
     void emplace_back(Args&&...);
 
     Iterator begin() {
-        return Iterator(data);
+        return Iterator(data_);
     };
     Iterator end() {
-        return Iterator(data+size);
+        return Iterator(data_ + size_);
     };
     
 private:
-    T* data = nullptr;
-    size_t size = 0;
-    size_t capacity = 0;
+    T* data_ = nullptr;
+    size_t size_ = 0;
+    size_t capacity_ = 0;
 
     void release() noexcept {
-        if (data != nullptr) {
-            for (size_t i = 0; i < size; ++i) {
-                data[i].~T(); 
+        if (data_ != nullptr) {
+            for (size_t i = 0; i < size_; ++i) {
+                data_[i].~T(); 
             }
 
-            ::operator delete(data);
+            ::operator delete(data_);
         }
 
-        data = nullptr;
-        size = 0;
-        capacity = 0;
+        data_ = nullptr;
+        size_ = 0;
+        capacity_ = 0;
     }
 
     void swap(MyVector& other) noexcept {
-        std::swap(data, other.data);
-        std::swap(size, other.size);
-        std::swap(capacity, other.capacity);
+        std::swap(data_, other.data_);
+        std::swap(size_, other.size_);
+        std::swap(capacity_, other.capacity_);
     }
 
     void checkAndExpand() {
-        if (size == capacity)
+        if (size_ == capacity_)
         {
-            size_t newCapacity = (size == 0 ? 1 : size * 2);
+            size_t newCapacity = (size_ == 0 ? 1 : size_ * 2);
 
             auto newData = static_cast<T*>(::operator new(sizeof(T) * newCapacity));
-            for (size_t i = 0; i < size; i++)
+            for (size_t i = 0; i < size_; i++)
             {
-                new (&newData[i]) T(std::move_if_noexcept(data[i]));
+                new (&newData[i]) T(std::move_if_noexcept(data_[i]));
             }
 
-            for (size_t i = 0; i < size; ++i) {
-                data[i].~T(); 
+            for (size_t i = 0; i < size_; ++i) {
+                data_[i].~T(); 
             }
         
-            ::operator delete(data);
+            ::operator delete(data_);
 
-            data = newData;
-            capacity = newCapacity;
+            data_ = newData;
+            capacity_ = newCapacity;
         }
     }
 };
@@ -119,15 +123,15 @@ private:
 template<typename T>
 MyVector<T>::MyVector(const MyVector& other)
 {
-    data = static_cast<T*>(::operator new(sizeof(T) * other.capacity));    
+    data_ = static_cast<T*>(::operator new(sizeof(T) * other.capacity_));    
     
-    for (size_t i = 0; i < other.size; i++)
+    for (size_t i = 0; i < other.size_; i++)
     {
-        new (&data[i]) T(other.data[i]);
+        new (&data_[i]) T(other.data_[i]);
     }
         
-    size = other.size;
-    capacity = other.capacity;
+    size_ = other.size_;
+    capacity_ = other.capacity_;
 }
 
 template<typename T>
@@ -140,15 +144,15 @@ MyVector<T>& MyVector<T>::operator=(MyVector rhs)
 template<typename T>
 void MyVector<T>::push_back(const T& e) {
     checkAndExpand();
-    new (&data[size]) T(e);
-    size++;
+    new (&data_[size_]) T(e);
+    size_++;
 }
 
 template<typename T>
 void MyVector<T>::push_back(T&& e) {
     checkAndExpand();
-    new (&data[size]) T(std::move(e));
-    size++;
+    new (&data_[size_]) T(std::move(e));
+    size_++;
 }
 
 template<typename T>
@@ -156,6 +160,6 @@ template<typename... Args>
 void MyVector<T>::emplace_back(Args&&... args) {
     checkAndExpand();
 
-    new (&data[size]) T(std::forward<Args>(args)...);
-    size++;
+    new (&data_[size_]) T(std::forward<Args>(args)...);
+    size_++;
 }
