@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 #include <cmath>
 
 #include "SFML/Graphics.hpp"
@@ -95,7 +95,7 @@ void update_single_boid(int index) {
                       + alignment * weight_alignment 
                       + cohesion * weight_cohesion;
     }
-
+    
     // 💡 修复 3：加入最小速度限制，强迫鱼群永远保持游动
     float speed = get_length(new_velocity);
     

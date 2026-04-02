@@ -1,7 +1,2 @@
-# 所有的文本文件统一转为 LF
-* text eol=lf
-
-# 显式指定某些文件类型（可选）
-*.cpp text eol=lf
-*.hpp text eol=lf
-*.json text eol=lf
+# 强制所有文本文件在 Git 仓库和本地都统一使用 LF (Linux 标准)
+* text=auto eol=lf
