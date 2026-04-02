@@ -1,0 +1,3 @@
+[submodule "thirdParty/dawn"]
+	path = thirdParty/dawn
+	url = https://dawn.googlesource.com/dawn

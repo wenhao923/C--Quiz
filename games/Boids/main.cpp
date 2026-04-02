@@ -1,12 +1,13 @@
-#include <SFML/Graphics.hpp>
 #include <iostream>
 #include <cmath>
 
+#include "SFML/Graphics.hpp"
 #include "imgui.h"
 #include "imgui-SFML.h"
 
-#include "MyVector.h"
-#include "MyThreadPool.h"
+#include "core/MyVector.h"
+#include "core/MyUnorderedMap.h"
+#include "core/MyThreadPool.h"
 
 // --- 全局常量设置 ---
 const int WINDOW_WIDTH = 1280;
@@ -32,6 +33,9 @@ struct Boid {
 // 双缓冲状态数组 (即便单线程也保留，防止计算先后顺序导致的误差)
 template<typename T>
 using Vector = MyVector<T>;
+
+template<typename K, typename V>
+using Unordered_map = MyUnorderedMap<K, V>;
 
 Vector<Boid> boids_read(NUM_BOIDS);
 Vector<Boid> boids_write(NUM_BOIDS);
@@ -114,6 +118,11 @@ void update_single_boid(int index) {
 }
 
 int main() {
+    Unordered_map<std::string, int> entityMap;
+    entityMap.insert("hello", 5);
+    entityMap.find("hello");
+    entityMap.erase("hello");
+
     sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Boids Swarm Simulation");
     window.setFramerateLimit(120);
 

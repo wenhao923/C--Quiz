@@ -23,13 +23,13 @@
 - 验证MacOS, Windows 双平台编译运行
 - 实现自定义 **MyVector** : Rule of 5，push_back(), emplace_back(), 迭代器
 - 实现线程池 **MyThreadPool** ：任务队列, 互斥锁, 条件变量, 原子变量
+- 实现哈希表 **MyUnorderedMap** ：增删查，lazy初始化，重哈希
 
 ### MileStone
 - 2000个Boid场景下，线程池将帧率从40FPS提升到120FPS
 
 ### Todo 
 - [ ] 内存池
-- [ ] Unordered_Map
 - [ ] String
 - [ ] 使用Vulkan渲染出三角形
 - [ ] 利用开源库（如 Assimp 或 cgltf）加载 3D 模型
