@@ -1,4 +1,5 @@
 {
-    // 核心：默认选中的项目（对应原 inputs 的 default: "Boids"）
-    "project.run.selectedProject": "Boids",
+    "cmake.environment": {
+            "VSLANG": "1033"
+        }
 }
