@@ -10,6 +10,10 @@ file(GLOB_RECURSE ENGINE_SOURCES
 
 add_library(MyEngineCore STATIC ${ENGINE_SOURCES})
 
+if(MSVC)
+    target_compile_options(MyEngineCore PRIVATE /utf-8)
+endif()
+
 find_package(OpenGL REQUIRED)
 target_link_libraries(MyEngineCore 
     PUBLIC

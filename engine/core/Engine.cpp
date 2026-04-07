@@ -1,5 +1,7 @@
 #include "Engine.h"
 #include <iostream>
+#include <condition_variable>
+#include <mutex>
 #include "MyVector.h"
 
 #include <webgpu/webgpu_cpp.h>
@@ -17,6 +19,11 @@ static wgpu::Device       g_device   = nullptr;
 static wgpu::Surface      g_surface  = nullptr;
 static wgpu::RenderPipeline g_pipeline = nullptr;
 static wgpu::Queue        g_queue    = nullptr;
+
+// 同步等待工具（用于等待异步请求完成）
+std::mutex g_mutex;
+std::condition_variable g_cv;
+bool g_requestFinished = false;
 
 // 记录当前窗口大小，用于 Surface 配置
 static uint32_t g_width  = 800;
@@ -82,43 +89,114 @@ void Engine::Init(const sf::Window& window) {
     return;
 #endif
 
-    // 3. 异步请求适配器 (Adapter)
-    wgpu::RequestAdapterOptions adapterOpts = {};
-    adapterOpts.compatibleSurface = g_surface;
-    adapterOpts.powerPreference = wgpu::PowerPreference::HighPerformance;
+    //
+    // Create an adapter
+    //
 
-    g_instance.RequestAdapter(
-            &adapterOpts, 
-            [](wgpu::RequestAdapterStatus status, wgpu::Adapter adapter, const char* message) {
-                if (status == wgpu::RequestAdapterStatus::Success) {
-                    g_adapter = adapter;
-                } else {
-                    std::cerr << "Adapter request failed: " << (message ? message : "Unknown") << std::endl;
+    {
+        // Base RequestAdapterOptions
+        wgpu::RequestAdapterOptions adapterOptions = {};
+        adapterOptions.compatibleSurface = g_surface;
+        adapterOptions.powerPreference = wgpu::PowerPreference::HighPerformance;
+
+        // Synchronously create the adapter
+        g_instance.WaitAny(
+            g_instance.RequestAdapter(&adapterOptions, wgpu::CallbackMode::WaitAnyOnly,
+                                            [](wgpu::RequestAdapterStatus status,
+                                               wgpu::Adapter adapter, wgpu::StringView message) {
+                                                if (status != wgpu::RequestAdapterStatus::Success) {
+                                                    return;
+                                                }
+                                                g_adapter = std::move(adapter);
+                                            }),
+            0);
+        if (g_adapter == nullptr) {
+            return;
+        }
+    }
+
+    //
+    // Create a device
+    //
+
+    {
+        // Base DeviceDescriptor
+        wgpu::DeviceDescriptor deviceDesc = {};
+        deviceDesc.SetDeviceLostCallback(
+            wgpu::CallbackMode::AllowSpontaneous,
+            [](const wgpu::Device&, wgpu::DeviceLostReason reason, wgpu::StringView message) {
+                const char* reasonName = "";
+                switch (reason) {
+                    case wgpu::DeviceLostReason::Unknown:
+                        reasonName = "Unknown";
+                        break;
+                    case wgpu::DeviceLostReason::Destroyed:
+                        reasonName = "Destroyed";
+                        break;
+                    case wgpu::DeviceLostReason::CallbackCancelled:
+                        reasonName = "CallbackCancelled";
+                        break;
+                    case wgpu::DeviceLostReason::FailedCreation:
+                        reasonName = "FailedCreation";
+                        break;
+                    default:
+                        break;
                 }
-            }
-        );
-    assert(g_adapter != nullptr && "Adapter must be initialized");
+                std::string_view msg(message.data, message.length);
 
-    // 4. 异步请求逻辑设备 (Device)
-    wgpu::DeviceDescriptor deviceDesc = {};
-    wgpuAdapterRequestDevice(g_adapter.Get(), 
-            reinterpret_cast<const WGPUDeviceDescriptor*>(&deviceDesc), 
-            [](WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* userdata) {
-                if (status == WGPURequestDeviceStatus_Success) {
-                    g_device = wgpu::Device::Acquire(device);
+                if (reason == wgpu::DeviceLostReason::Destroyed) {
+                    std::cout << "[Dawn Info] Device gracefully destroyed." << std::endl;
                 } else {
-                    std::cerr << "Device request failed: " << (message ? message : "Unknown") << std::endl;
+                    std::cerr << "[FATAL] WebGPU Device Lost!" << "\n"
+                            << "   -> Reason : " << reasonName << "\n"
+                            << "   -> Message: " << msg << "\n"
+                            << "----------------------------------------" << std::endl;
                 }
-            }, nullptr);
-    assert(g_device != nullptr && "Device must be initialized");
+            });
+        deviceDesc.SetUncapturedErrorCallback(
+            [](const wgpu::Device&, wgpu::ErrorType type, wgpu::StringView message) {
+                std::string_view msg(message.data, message.length);
+                const char* errorTypeName = "";
+                switch (type) {
+                    case wgpu::ErrorType::Validation:
+                        errorTypeName = "Validation";
+                        break;
+                    case wgpu::ErrorType::OutOfMemory:
+                        errorTypeName = "Out of memory";
+                        break;
+                    case wgpu::ErrorType::Internal:
+                        errorTypeName = "Internal";
+                        break;
+                    case wgpu::ErrorType::Unknown:
+                        errorTypeName = "Unknown";
+                        break;
+                    default:
+                        break;
+                }
+                std::cerr << "🚨 [WebGPU ERROR - " << errorTypeName << "] " << msg << std::endl;
+                assert(type != wgpu::ErrorType::Validation && "遇到了 WebGPU 验证错误，请检查渲染参数！");
+            });
 
-    // 注册全局错误回调 (非常重要，抓瞎时的救命稻草)
-    wgpuDeviceSetUncapturedErrorCallback(g_device.Get(), 
-            [](WGPUErrorType type, const char* message, void* userdata) {
-                std::cerr << "[Dawn Error] " << (message ? message : "Unknown") << std::endl;
-            }, nullptr);
+        // Synchronously create the device
+        g_instance.WaitAny(
+            g_adapter.RequestDevice(
+                &deviceDesc, wgpu::CallbackMode::WaitAnyOnly,
+                [](wgpu::RequestDeviceStatus status, wgpu::Device device,
+                   wgpu::StringView message) {
+                    if (status != wgpu::RequestDeviceStatus::Success) {
+                        return;
+                    }
 
-    g_queue = g_device.GetQueue();
+                    g_device = std::move(device);
+                    g_queue = g_device.GetQueue();
+                }),
+            0);
+        if (g_device == nullptr) {
+            return;
+        }
+    }
+
+
 
     // 5. [新架构] 配置 Surface (废弃了旧版 SwapChain)
     wgpu::TextureFormat surfaceFormat = wgpu::TextureFormat::BGRA8Unorm; 
@@ -197,7 +275,7 @@ void Engine::Render() {
     }
 
     // 2. 为当前获取的纹理创建一个视图 (View)
-    wgpu::TextureView    viewDesc = {};
+    wgpu::TextureViewDescriptor viewDesc = {};
     viewDesc.format = surfaceTexture.texture.GetFormat();
     viewDesc.dimension = wgpu::TextureViewDimension::e2D;
     viewDesc.baseMipLevel = 0;
