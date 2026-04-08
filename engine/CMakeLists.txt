@@ -18,9 +18,7 @@ find_package(OpenGL REQUIRED)
 target_link_libraries(MyEngineCore 
     PUBLIC
         webgpu_dawn    # 图形大炮
-        SFML_Bundle    # 窗口与输入底盘 (必须显式加上！)
-        ImGui_SFML     # UI 组件
-        OpenGL::GL
+        glfw
 )
 
 target_include_directories(MyEngineCore PUBLIC 

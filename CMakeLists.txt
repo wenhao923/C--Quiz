@@ -41,7 +41,6 @@ set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "Don't build Dawn samples" FORCE)
 set(DAWN_ENABLE_TESTS OFF CACHE BOOL "Don't build Dawn tests" FORCE)
 add_subdirectory(thirdParty/dawn)
 
-add_subdirectory(thirdParty/SFML)
 add_subdirectory(thirdParty/imgui-sfml)
 add_subdirectory(thirdParty/imgui)
 

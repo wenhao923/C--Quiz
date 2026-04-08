@@ -6,11 +6,13 @@
 
 #include <webgpu/webgpu_cpp.h>
 
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
-
-#include <SFML/Window.hpp>
 
 // --- 定义一些全局变量来存放 Dawn 核心状态 (为了演示，实际应用应放在类成员中) ---
 static wgpu::Instance     g_instance = nullptr;
@@ -62,10 +64,14 @@ fn fs_main(@location(0) color : vec3<f32>) -> @location(0) vec4<f32> {
 )";
 
 // --- 初始化引擎 ---
-void Engine::Init(const sf::Window& window) {
-    std::cout << "[Dawn] Booting up Next-Gen WGPU Reactor..." << std::endl;
-    g_width = window.getSize().x;
-    g_height = window.getSize().y;
+void Engine::Init(GLFWwindow* window) {
+    std::cout << "[Dawn] Booting up Next-Gen WGPU Reactor with GLFW..." << std::endl;
+    
+    // 1. 获取 GLFW 窗口大小 (注意：要获取 Framebuffer 大小防缩放错乱)
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    g_width = width;
+    g_height = height;
 
     // 1. 创建 Instance (包含特性请求配置)
     wgpu::InstanceDescriptor instanceDesc = {};
@@ -75,11 +81,12 @@ void Engine::Init(const sf::Window& window) {
         return;
     }
 
-    // 2. 创建 Surface (连接到 SFML 窗口)
+// 3. [核心重构] 用 GLFW 获取 Windows HWND 并创建 Surface
 #ifdef _WIN32
     wgpu::SurfaceSourceWindowsHWND hwndDesc;
-    hwndDesc.hinstance = GetModuleHandle(nullptr); // 最新 Dawn 往往需要传入当前程序的实例句柄
-    hwndDesc.hwnd = window.getSystemHandle();
+    hwndDesc.hinstance = GetModuleHandle(nullptr);
+    // 使用 GLFW 的专用函数获取原生 HWND
+    hwndDesc.hwnd = glfwGetWin32Window(window); 
     
     wgpu::SurfaceDescriptor surfaceDesc;
     surfaceDesc.nextInChain = &hwndDesc;

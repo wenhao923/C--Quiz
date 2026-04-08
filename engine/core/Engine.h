@@ -1,8 +1,7 @@
 #pragma once
 
-// 我们只需要 SFML 的窗口类型来做初始化传参
 // 尽量不在头文件里 include 太多东西，以加快整个项目的编译速度
-#include <SFML/Window.hpp>
+struct GLFWwindow;
 
 class Engine {
 public:
@@ -17,7 +16,7 @@ public:
     Engine& operator=(const Engine&) = delete;
 
     // 3. 核心生命周期接口
-    void Init(const sf::Window& window);
+    void Init(GLFWwindow* window);
     void Render();
 
 private:
