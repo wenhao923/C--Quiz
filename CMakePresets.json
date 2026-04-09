@@ -10,8 +10,9 @@
       "name": "win-x64",
       "displayName": "Windows 桌面端物理构建",
       "description": "使用本地系统编译器，输出到 build-win 目录",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/build-win"
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/build/build-win",
+      "architecture": "x64"
     },
     {
       "name": "web-wasm",

@@ -1,39 +1,82 @@
-# C--Quiz
+# C++ Quiz
 
-基于 C++ 的纯原生开发实践项目，聚焦 C++ 核心特性、高级组件封装、多线程编程与跨端图形化开发，包含核心组件、编程练习及 Boids 鱼群模拟实战项目，用于 C++ 进阶学习与工程实践。
+基于 C++ 的纯原生开发实践项目，聚焦 C++ 核心特性、高级组件封装、多线程编程与跨端图形化开发，包含自定义引擎核心组件、编程练习及 Boids 鱼群模拟实战项目，用于 C++ 进阶学习与工程实践。
 
-### 技术栈
+## 技术栈
 - **主语言**：C++
-- **图形渲染**：SFML
-- **图形界面**：ImGui
-- **编译适配**：VSCode跨端编译配置、Clang/MSVC
-- **开发环境**：MacOS, Windows
+- **编译系统**：CMake
+- **渲染框架**：WebGPU (Dawn)、SFML
+- **图形界面**：ImGui、ImGui-SFML
+- **编译器**：MSVC (Visual Studio)、Emscripten (WebGPU)
+- **开发环境**：Windows, macOS, Web
 
-### 项目结构
-| 目录 | 核心内容 |
-|------|----------|
-| **core** | 通用组件封装|
-| **projects/Boids** | Boids鱼群模拟 |
-| **exercise** | C++核心特性编程练习案例 |
-| **thirdParty** | SFML、ImGui等第三方依赖库 |
-| **.vscode** | 跨平台编译与调试配置 |
+## 项目结构
 
-### 功能
-- 集成SFML图形渲染框架、ImGui图形界面
-- 验证MacOS, Windows 双平台编译运行
-- 实现自定义 **MyVector** : Rule of 5，push_back(), emplace_back(), 迭代器
-- 实现线程池 **MyThreadPool** ：任务队列, 互斥锁, 条件变量, 原子变量
-- 实现哈希表 **MyUnorderedMap** ：增删查，lazy初始化，重哈希
+```
+.
+├── engine/              # 核心引擎组件
+│   └── core/           # 引擎核心类与自定义数据结构
+├── games/              # 游戏项目集合
+│   ├── HelloTriangle/  # WebGPU 三角形渲染 (Emscripten 支持)
+│   └── Boids/          # Boids 鱼群模拟实战项目 (SFML 渲染库)
+├── playground/         # C++ 编程练习案例
+├── thirdParty/         # 第三方依赖库
+│   ├── dawn/          # WebGPU 渲染框架
+│   ├── imgui/         # GUI 库
+│   ├── imgui-sfml/    # ImGui-SFML 集成
+│   └── SFML/          # 图形渲染库
+├── build/             # 编译输出目录
+│   ├── build-win/     # Windows 构建
+│   │       └── bin/      # MSVC 编译产物 (exe)
+│   └── build-web/     # Emscripten Web 构建
+│           └── bin/      # Web 编译产物 (HTML/WebAssembly)
+└── CMakeLists.txt     # CMake 项目配置
+```
 
-### MileStone
-- 2000个Boid场景下，线程池将帧率从40FPS提升到120FPS
+## 核心组件
 
-### Todo 
-- [ ] 内存池
-- [ ] String
-- [ ] 使用Vulkan渲染出三角形
-- [ ] 利用开源库（如 Assimp 或 cgltf）加载 3D 模型
-- [ ] 抽象出 Mesh、Material 和 Renderer 的概念
-- [ ] 实现一个数据驱动的材质系统
-- [ ] 实现延迟渲染: 构建 G-Buffer（几何缓冲区），将反照率（Albedo）、法线（Normal）、粗糙度/金属度（Roughness/Metallic）先存入多张纹理
-- [ ] 在全屏 Pass 中统一计算光照。体会将复杂度从 $O(N \times M)$ 降为 $O(N + M)$ 的快感。
+| 组件 | 功能描述 | 关键特性 |
+|------|----------|---------|
+| **Engine** | 图形引擎核心 | 异步任务、事件循环 |
+| **MyVector** | 动态数组 | Rule of 5、迭代器、emplace_back |
+| **MyThreadPool** | 线程池 | 任务队列、同步原语、工作窃取 |
+| **MyUnorderedMap** | 哈希表 | 增删查、Lazy初始化、Open Addressing |
+| **WebGPUAsync** | 异步渲染 | GPU 任务队列、异步交换链 |
+
+## 构建与运行
+
+### Windows 构建
+```
+1. git submodule update --init
+2. python tools/fetch_dawn_dependencies.py
+3. 使用CMake构建工程
+4. 使用MSVC编译工程
+5. 拷贝图形API动态库到exe目录
+```
+
+### Web 构建 (Emscripten)
+```
+1. emsdk缓存经常出错，找不到需要的头文件：需要embuilder build sysroot --force
+2. 对于html需要 open with live server
+```
+
+## Milestone
+- 🎯 **自定义容器库**：从零实现 STL 风格的容器和工具类
+- 🎯 **线程池**：多线程优化2000个Boid，帧率提升 3 倍
+- 🎯 **WebGPU 跨端渲染**：支持 Web/Windows/macOS 统一渲染管道
+## 计划中 (TODO)
+- [ ] 内存池 (Memory Pool)
+- [ ] String 类完整实现
+- [ ] 深入了解现代图形API
+- [ ] 3D 模型加载 (Assimp / cgltf)
+- [ ] 延迟渲染 (Deferred Rendering)
+- [ ] 物理引擎集成
+
+## 更新日志
+
+### 3月
+- 完成 MyVector、MyThreadPool、MyUnorderedMap 核心实现
+- Boids 鱼群模拟基础版本
+### 4月
+- 接入dawn，窗口API替换为GLFW，在Windows渲染出HelloTriangle
+- 使用emscripten编译出产物，在chrome渲染出HelloTriangle
