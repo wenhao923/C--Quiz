@@ -27,9 +27,9 @@
 │   └── SFML/          # 图形渲染库
 ├── build/             # 编译输出目录
 │   ├── build-win/     # Windows 构建
-│   │       └── bin/      # MSVC 编译产物 (exe)
+│   │   └── bin/      # MSVC 编译产物 (exe)
 │   └── build-web/     # Emscripten Web 构建
-│           └── bin/      # Web 编译产物 (HTML/WebAssembly)
+│       └── bin/      # Web 编译产物 (HTML/WebAssembly)
 └── CMakeLists.txt     # CMake 项目配置
 ```
 
@@ -74,9 +74,10 @@
 
 ## 更新日志
 
-### 3月
-- 完成 MyVector、MyThreadPool、MyUnorderedMap 核心实现
-- Boids 鱼群模拟基础版本
 ### 4月
 - 接入dawn，窗口API替换为GLFW，在Windows渲染出HelloTriangle
 - 使用emscripten编译出产物，在chrome渲染出HelloTriangle
+
+### 3月
+- 完成 MyVector、MyThreadPool、MyUnorderedMap 核心实现
+- Boids 鱼群模拟基础版本
