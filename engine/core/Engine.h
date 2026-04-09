@@ -1,4 +1,6 @@
 #pragma once
+#include <functional>
+#include "WebGPUAsync.h"
 
 // 尽量不在头文件里 include 太多东西，以加快整个项目的编译速度
 struct GLFWwindow;
@@ -16,7 +18,7 @@ public:
     Engine& operator=(const Engine&) = delete;
 
     // 3. 核心生命周期接口
-    void Init(GLFWwindow* window);
+    AsyncTask InitAsync(GLFWwindow* window, std::function<void()> onInitComplete);
     void Render();
 
 private:

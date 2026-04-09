@@ -6,12 +6,16 @@
 
 #include <webgpu/webgpu_cpp.h>
 
-#define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
 
-#ifdef _WIN32
-#include <windows.h>
+#ifndef __EMSCRIPTEN__
+    #define GLFW_EXPOSE_NATIVE_WIN32
+    #include <GLFW/glfw3native.h>
+    #ifdef _WIN32
+        #include <windows.h>
+    #endif
+#else
+    #include <emscripten.h>
 #endif
 
 // --- 定义一些全局变量来存放 Dawn 核心状态 (为了演示，实际应用应放在类成员中) ---
@@ -64,7 +68,7 @@ fn fs_main(@location(0) color : vec3<f32>) -> @location(0) vec4<f32> {
 )";
 
 // --- 初始化引擎 ---
-void Engine::Init(GLFWwindow* window) {
+AsyncTask Engine::InitAsync(GLFWwindow* window, std::function<void()> onInitComplete) {
     std::cout << "[Dawn] Booting up Next-Gen WGPU Reactor with GLFW..." << std::endl;
     
     // 1. 获取 GLFW 窗口大小 (注意：要获取 Framebuffer 大小防缩放错乱)
@@ -73,149 +77,109 @@ void Engine::Init(GLFWwindow* window) {
     g_width = width;
     g_height = height;
 
-    // 1. 创建 Instance (包含特性请求配置)
+    // 2. 创建 Instance (包含特性请求配置)
     wgpu::InstanceDescriptor instanceDesc = {};
     g_instance = wgpu::CreateInstance(&instanceDesc);
     if (!g_instance) {
         std::cerr << "Fatal: Failed to create Dawn Instance!" << std::endl;
-        return;
+        co_return;
     }
 
-// 3. [核心重构] 用 GLFW 获取 Windows HWND 并创建 Surface
-#ifdef _WIN32
-    wgpu::SurfaceSourceWindowsHWND hwndDesc;
+    // 3. [核心重构] 用 GLFW 获取 Windows HWND 并创建 Surface
+#ifdef __EMSCRIPTEN__
+    // 网页端：直接通过 HTML Canvas 选择器创建渲染表面！
+    wgpu::EmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc{};
+    canvasDesc.selector = "#canvas"; // Emscripten 生成的网页中默认的画布 ID
+
+    wgpu::SurfaceDescriptor surfaceDesc{};
+    surfaceDesc.nextInChain = &canvasDesc;
+#else
+    // 桌面端：传统的 Windows HWND 创建方式
+    wgpu::SurfaceSourceWindowsHWND hwndDesc{};
     hwndDesc.hinstance = GetModuleHandle(nullptr);
-    // 使用 GLFW 的专用函数获取原生 HWND
     hwndDesc.hwnd = glfwGetWin32Window(window); 
     
-    wgpu::SurfaceDescriptor surfaceDesc;
+    wgpu::SurfaceDescriptor surfaceDesc{};
     surfaceDesc.nextInChain = &hwndDesc;
-    g_surface = g_instance.CreateSurface(&surfaceDesc);
-#else
-    std::cerr << "Fatal: Only Windows surface is implemented in this snippet!" << std::endl;
-    return;
 #endif
+    g_surface = g_instance.CreateSurface(&surfaceDesc);
 
-    //
-    // Create an adapter
-    //
+    // 4. 配置显卡需求
+    wgpu::RequestAdapterOptions adapterOptions = {};
+    adapterOptions.powerPreference = wgpu::PowerPreference::HighPerformance;
 
-    {
-        // Base RequestAdapterOptions
-        wgpu::RequestAdapterOptions adapterOptions = {};
-        adapterOptions.compatibleSurface = g_surface;
-        adapterOptions.powerPreference = wgpu::PowerPreference::HighPerformance;
-
-        // Synchronously create the adapter
-        g_instance.WaitAny(
-            g_instance.RequestAdapter(&adapterOptions, wgpu::CallbackMode::WaitAnyOnly,
-                                            [](wgpu::RequestAdapterStatus status,
-                                               wgpu::Adapter adapter, wgpu::StringView message) {
-                                                if (status != wgpu::RequestAdapterStatus::Success) {
-                                                    return;
-                                                }
-                                                g_adapter = std::move(adapter);
-                                            }),
-            0);
-        if (g_adapter == nullptr) {
-            return;
-        }
-    }
-
-    //
-    // Create a device
-    //
-
-    {
-        // Base DeviceDescriptor
-        wgpu::DeviceDescriptor deviceDesc = {};
-        deviceDesc.SetDeviceLostCallback(
-            wgpu::CallbackMode::AllowSpontaneous,
-            [](const wgpu::Device&, wgpu::DeviceLostReason reason, wgpu::StringView message) {
-                const char* reasonName = "";
-                switch (reason) {
-                    case wgpu::DeviceLostReason::Unknown:
-                        reasonName = "Unknown";
-                        break;
-                    case wgpu::DeviceLostReason::Destroyed:
-                        reasonName = "Destroyed";
-                        break;
-                    case wgpu::DeviceLostReason::CallbackCancelled:
-                        reasonName = "CallbackCancelled";
-                        break;
-                    case wgpu::DeviceLostReason::FailedCreation:
-                        reasonName = "FailedCreation";
-                        break;
-                    default:
-                        break;
-                }
-                std::string_view msg(message.data, message.length);
-
-                if (reason == wgpu::DeviceLostReason::Destroyed) {
-                    std::cout << "[Dawn Info] Device gracefully destroyed." << std::endl;
-                } else {
-                    std::cerr << "[FATAL] WebGPU Device Lost!" << "\n"
-                            << "   -> Reason : " << reasonName << "\n"
-                            << "   -> Message: " << msg << "\n"
-                            << "----------------------------------------" << std::endl;
-                }
-            });
-        deviceDesc.SetUncapturedErrorCallback(
-            [](const wgpu::Device&, wgpu::ErrorType type, wgpu::StringView message) {
-                std::string_view msg(message.data, message.length);
-                const char* errorTypeName = "";
-                switch (type) {
-                    case wgpu::ErrorType::Validation:
-                        errorTypeName = "Validation";
-                        break;
-                    case wgpu::ErrorType::OutOfMemory:
-                        errorTypeName = "Out of memory";
-                        break;
-                    case wgpu::ErrorType::Internal:
-                        errorTypeName = "Internal";
-                        break;
-                    case wgpu::ErrorType::Unknown:
-                        errorTypeName = "Unknown";
-                        break;
-                    default:
-                        break;
-                }
-                std::cerr << "🚨 [WebGPU ERROR - " << errorTypeName << "] " << msg << std::endl;
-                assert(type != wgpu::ErrorType::Validation && "遇到了 WebGPU 验证错误，请检查渲染参数！");
-            });
-
-        // Synchronously create the device
-        g_instance.WaitAny(
-            g_adapter.RequestDevice(
-                &deviceDesc, wgpu::CallbackMode::WaitAnyOnly,
-                [](wgpu::RequestDeviceStatus status, wgpu::Device device,
-                   wgpu::StringView message) {
-                    if (status != wgpu::RequestDeviceStatus::Success) {
-                        return;
-                    }
-
-                    g_device = std::move(device);
-                    g_queue = g_device.GetQueue();
-                }),
-            0);
-        if (g_device == nullptr) {
-            return;
-        }
-    }
-
-
-
-    // 5. [新架构] 配置 Surface (废弃了旧版 SwapChain)
-    wgpu::TextureFormat surfaceFormat = wgpu::TextureFormat::BGRA8Unorm; 
+    // 一行代码要显卡，主线程在这里自动挂起并弹回！
+    g_adapter = co_await RequestAdapterAsync(g_instance, adapterOptions);
     
+    if (!g_adapter) {
+        std::cerr << "Fatal: Failed to get Adapter!" << std::endl;
+        co_return; // 协程异常退出
+    }
+
+
+    // 5. 配置设备需求
+    // Base DeviceDescriptor
+    wgpu::DeviceDescriptor deviceDesc = {};
+    deviceDesc.SetDeviceLostCallback(
+        wgpu::CallbackMode::AllowSpontaneous,
+        [](const wgpu::Device&, wgpu::DeviceLostReason reason, wgpu::StringView message) {
+            const char* reasonName = "";
+            switch (reason) {
+                case wgpu::DeviceLostReason::Unknown:
+                    reasonName = "Unknown";
+                    break;
+                case wgpu::DeviceLostReason::Destroyed:
+                    reasonName = "Destroyed";
+                    break;
+                case wgpu::DeviceLostReason::CallbackCancelled:
+                    reasonName = "CallbackCancelled";
+                    break;
+                case wgpu::DeviceLostReason::FailedCreation:
+                    reasonName = "FailedCreation";
+                    break;
+                default:
+                    break;
+            }
+        });
+    deviceDesc.SetUncapturedErrorCallback(
+        [](const wgpu::Device&, wgpu::ErrorType type, wgpu::StringView message) {
+            const char* errorTypeName = "";
+            switch (type) {
+                case wgpu::ErrorType::Validation:
+                    errorTypeName = "Validation";
+                    break;
+                case wgpu::ErrorType::OutOfMemory:
+                    errorTypeName = "Out of memory";
+                    break;
+                case wgpu::ErrorType::Internal:
+                    errorTypeName = "Internal";
+                    break;
+                case wgpu::ErrorType::Unknown:
+                    errorTypeName = "Unknown";
+                    break;
+                default:
+                    break;
+            }
+        });
+
+    // Synchronously create the device
+    g_device = co_await RequestDeviceAsync(g_adapter, deviceDesc);
+
+    if (!g_device) {
+        std::cerr << "Fatal: Failed to get Device!" << std::endl;
+        co_return; 
+    }
+
+    g_queue = g_device.GetQueue();
+
+    // 6. 配置 Surface (废弃了旧版 SwapChain)
     wgpu::SurfaceConfiguration config = {};
     config.device = g_device;
-    config.format = surfaceFormat;
+    config.format = wgpu::TextureFormat::BGRA8Unorm;
     config.usage = wgpu::TextureUsage::RenderAttachment;
     config.width = g_width;
     config.height = g_height;
     config.presentMode = wgpu::PresentMode::Fifo;
-    
     // 现代 API：直接使用 Configure 初始化表面
     g_surface.Configure(&config);
 
@@ -227,7 +191,6 @@ void Engine::Init(GLFWwindow* window) {
     wgpu::ShaderModule shaderModule = g_device.CreateShaderModule(&smDesc);
 
     wgpu::RenderPipelineDescriptor pipelineDesc = {};
-    
     // 顶点状态
     pipelineDesc.vertex.module = shaderModule;
     pipelineDesc.vertex.entryPoint = "vs_main";
@@ -243,7 +206,7 @@ void Engine::Init(GLFWwindow* window) {
     blend.alpha.operation = wgpu::BlendOperation::Add;
 
     wgpu::ColorTargetState colorTarget = {};
-    colorTarget.format = surfaceFormat;
+    colorTarget.format = wgpu::TextureFormat::BGRA8Unorm;
     colorTarget.blend = &blend;
     colorTarget.writeMask = wgpu::ColorWriteMask::All;
 
@@ -267,6 +230,13 @@ void Engine::Init(GLFWwindow* window) {
     g_pipeline = g_device.CreateRenderPipeline(&pipelineDesc);
 
     std::cout << "[Dawn] Reactor is ONLINE. Pipeline configured via modern API." << std::endl;
+    
+    // 7. 拉响信号，通知 main.cpp 开始渲染循环！
+    if (onInitComplete) {
+        onInitComplete();
+    }
+    
+    co_return; // 协程完美结束
 }
 
 // --- 现代渲染主循环 ---
@@ -324,5 +294,7 @@ void Engine::Render() {
     g_surface.Present();
 
     // 7. [关键] 在某些 Dawn 版本中，必须 tick(刷新) 设备才能处理回调和任务
+#ifndef __EMSCRIPTEN__
     g_device.Tick(); 
+#endif
 }
