@@ -54,6 +54,7 @@ else()
     target_link_libraries(MyEngineCore 
         PUBLIC
             webgpu_dawn
+            dawn_glfw
             glfw
     )
 endif()

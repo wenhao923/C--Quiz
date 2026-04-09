@@ -5,18 +5,8 @@
 #include "MyVector.h"
 
 #include <webgpu/webgpu_cpp.h>
-
+#include <webgpu/webgpu_glfw.h>
 #include <GLFW/glfw3.h>
-
-#ifndef __EMSCRIPTEN__
-    #define GLFW_EXPOSE_NATIVE_WIN32
-    #include <GLFW/glfw3native.h>
-    #ifdef _WIN32
-        #include <windows.h>
-    #endif
-#else
-    #include <emscripten.h>
-#endif
 
 // --- 定义一些全局变量来存放 Dawn 核心状态 (为了演示，实际应用应放在类成员中) ---
 static wgpu::Instance     g_instance = nullptr;
@@ -85,24 +75,8 @@ AsyncTask Engine::InitAsync(GLFWwindow* window, std::function<void()> onInitComp
         co_return;
     }
 
-    // 3. [核心重构] 用 GLFW 获取 Windows HWND 并创建 Surface
-#ifdef __EMSCRIPTEN__
-    // 网页端：直接通过 HTML Canvas 选择器创建渲染表面！
-    wgpu::EmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc{};
-    canvasDesc.selector = "#canvas"; // Emscripten 生成的网页中默认的画布 ID
-
-    wgpu::SurfaceDescriptor surfaceDesc{};
-    surfaceDesc.nextInChain = &canvasDesc;
-#else
-    // 桌面端：传统的 Windows HWND 创建方式
-    wgpu::SurfaceSourceWindowsHWND hwndDesc{};
-    hwndDesc.hinstance = GetModuleHandle(nullptr);
-    hwndDesc.hwnd = glfwGetWin32Window(window); 
-    
-    wgpu::SurfaceDescriptor surfaceDesc{};
-    surfaceDesc.nextInChain = &hwndDesc;
-#endif
-    g_surface = g_instance.CreateSurface(&surfaceDesc);
+    // 3. [简化] 使用 GLFW 包装 API 统一创建 Surface，自动处理平台差异
+    g_surface = wgpu::glfw::CreateSurfaceForWindow(g_instance, window);
 
     // 4. 配置显卡需求
     wgpu::RequestAdapterOptions adapterOptions = {};
